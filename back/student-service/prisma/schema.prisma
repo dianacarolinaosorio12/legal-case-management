@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model LegalCase {
+  id                String           @id @default(cuid())
+  radicado          String           @unique
+  clientName        String
+  clientDoc         String
+  clientDocType     String
+  clientPhone       String
+  clientEmail       String
+  clientAddress     String
+  type              CaseType
+  area              CaseArea
+  status            CaseStatus
+  semaphore         SemaphoreColor
+  deadline          String
+  createdAt         String
+  assignedStudent   String
+  assignedProfessor String
+  description       String
+  isMinor           Boolean
+  highRiskAlert     Boolean
+  highRiskReason    String?
+  procesalDeadlines Json // Array of ProcesalDeadline objects
+  reservedData      Json? // ReservedData object
+  substitutionHistory Json // Array of substitution objects
+  interviewNotes    String?
+  aiTags           Json // Array of AITag objects
+  documents        Json // Array of CaseDocument objects
+  auditLog         Json // Array of AuditEntry objects
+  survey           Json? // SatisfactionSurvey object
+  hoursSpent       Float
+  assignedStudentId String? @map("assigned_student_id")
+  
+  @@map("legal_cases")
+}
+
+enum CaseType {
+  Tutela
+  Demanda
+  Derecho_de_peticion
+  Consulta
+}
+
+enum CaseArea {
+  Penal
+  Civil
+  Laboral
+  Familia
+  Derecho_Publico
+}
+
+enum CaseStatus {
+  Evaluacion
+  Sustanciacion
+  Revision_del_profesor
+  Aprobado
+  Seguimiento
+  Cerrado
+}
+
+enum SemaphoreColor {
+  red
+  yellow
+  green
+}

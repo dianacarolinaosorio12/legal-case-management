@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  password          String
+  role              UserRole
+  area              CaseArea?
+  activeCases       Int      @default(0)
+  totalPracticeHours Int     @default(0)
+  semester          String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  estudiante
+  profesor
+  administrativo
+}
+
+enum CaseArea {
+  Penal
+  Civil
+  Laboral
+  Familia
+  Derecho_Publico
+}
