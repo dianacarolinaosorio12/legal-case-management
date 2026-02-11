@@ -16,7 +16,7 @@ const robotoMono = Roboto_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "SICOP - Sistema de Control de Procesos",
+  title: "SICOP - Sistema de Control de Prácticas",
   description:
     "Plataforma de gestion de casos juridicos para el Consultorio Juridico Universitario",
 }

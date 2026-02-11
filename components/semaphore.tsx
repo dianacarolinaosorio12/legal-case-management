@@ -6,12 +6,12 @@ const colorMap: Record<SemaphoreColor, { border: string; bg: string; label: stri
   red: {
     border: "border-destructive",
     bg: "bg-destructive",
-    label: "Urgente",
+    label: "Vencido",
   },
   yellow: {
     border: "border-warning",
     bg: "bg-warning",
-    label: "Precaucion",
+    label: "Proximo vencimiento",
   },
   green: {
     border: "border-success",

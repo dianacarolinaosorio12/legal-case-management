@@ -5,8 +5,6 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import {
   Search,
-  Star,
-  StarOff,
   CheckCircle2,
   Filter,
   AlertTriangle,
@@ -14,6 +12,7 @@ import {
   FileSearch,
   Eye,
   Activity,
+  Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,9 +25,10 @@ import { useAuth } from "@/lib/auth-context"
 
 const phaseLabels: Record<number, { label: string; color: string; icon: typeof FileSearch; desc: string }> = {
   1: { label: "Evaluacion del Caso", color: "bg-muted text-muted-foreground", icon: FileSearch, desc: "Revise los archivos e informacion clave enviados por el estudiante." },
-  2: { label: "Revision", color: "bg-secondary/15 text-secondary", icon: Eye, desc: "Revise y apruebe o devuelva el caso con observaciones. El estudiante debe editar segun indicaciones." },
+  2: { label: "Revision", color: "bg-secondary/15 text-secondary", icon: Eye, desc: "Revise y apruebe o devuelva el caso con observaciones." },
   3: { label: "Aprobacion", color: "bg-success/15 text-success", icon: CheckCircle2, desc: "El caso esta aprobado. Verifique el Visto Bueno final." },
   4: { label: "Seguimiento", color: "bg-primary/15 text-primary", icon: Activity, desc: "Monitoreo continuo del caso en curso." },
+  5: { label: "Cerrado", color: "bg-muted text-muted-foreground", icon: CheckCircle2, desc: "Casos cerrados definitivamente por el profesor." },
 }
 
 function ProfessorInboxContent() {
@@ -37,28 +37,21 @@ function ProfessorInboxContent() {
   const faseParam = searchParams.get("fase")
 
   const professorArea = user?.area || "Laboral"
-  const areaFilteredInbox = mockProfessorInbox.filter((item) => item.area === professorArea)
 
-  const [items, setItems] = useState<ProfessorInboxItem[]>(areaFilteredInbox)
+  // Show ALL inbox items so every phase has examples
+  const [items] = useState<ProfessorInboxItem[]>(mockProfessorInbox)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState("")
   const [filterRedOnly, setFilterRedOnly] = useState(false)
 
-  // Phase counts
+  // Phase counts from all items
   const phaseCounts = useMemo(() => {
-    const counts = { 1: 0, 2: 0, 3: 0, 4: 0 }
-    // Use all inbox items (not just area-filtered for demo with all data)
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
     mockProfessorInbox.forEach((item) => {
       counts[item.phase]++
     })
     return counts
   }, [])
-
-  function toggleStar(id: string) {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, starred: !item.starred } : item))
-    )
-  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -70,9 +63,13 @@ function ProfessorInboxContent() {
   }
 
   const filteredItems = items.filter((item) => {
+    const q = search.toLowerCase()
     const matchSearch =
-      item.from.toLowerCase().includes(search.toLowerCase()) ||
-      item.subject.toLowerCase().includes(search.toLowerCase())
+      !q ||
+      item.from.toLowerCase().includes(q) ||
+      item.subject.toLowerCase().includes(q) ||
+      item.radicado.toLowerCase().includes(q) ||
+      (item.clientDoc && item.clientDoc.includes(search))
     const matchRed = filterRedOnly ? item.semaphore === "red" : true
     const matchPhase = !faseParam || item.phase === Number(faseParam)
     return matchSearch && matchRed && matchPhase
@@ -87,7 +84,7 @@ function ProfessorInboxContent() {
   }
 
   const highRiskCount = filteredItems.filter((i) => i.highRisk).length
-  const currentPhase = faseParam ? Number(faseParam) as 1 | 2 | 3 | 4 : null
+  const currentPhase = faseParam ? Number(faseParam) as 1 | 2 | 3 | 4 | 5 : null
   const phaseInfo = currentPhase ? phaseLabels[currentPhase] : null
 
   return (
@@ -108,7 +105,7 @@ function ProfessorInboxContent() {
             )}
             {!phaseInfo && (
               <span className="hidden sm:inline text-xs text-muted-foreground">
-                Solo se muestran casos de su especialidad
+                Todos los casos asignados
               </span>
             )}
           </div>
@@ -122,8 +119,8 @@ function ProfessorInboxContent() {
       </div>
 
       {/* Phase Counter Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {([1, 2, 3, 4] as const).map((phase) => {
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {([1, 2, 3, 4, 5] as const).map((phase) => {
           const info = phaseLabels[phase]
           const isActive = currentPhase === phase
           return (
@@ -148,7 +145,7 @@ function ProfessorInboxContent() {
         <div className="relative flex-1 max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
-            placeholder="Buscar por estudiante o asunto..."
+            placeholder="Buscar por estudiante, radicado, documento o asunto..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-10 pl-9"
@@ -216,21 +213,6 @@ function ProfessorInboxContent() {
                     aria-label={`Seleccionar caso de ${item.from}`}
                     onClick={(e) => e.stopPropagation()}
                   />
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      toggleStar(item.id)
-                    }}
-                    className="shrink-0 text-muted-foreground hover:text-accent"
-                    aria-label={item.starred ? "Quitar estrella" : "Marcar con estrella"}
-                  >
-                    {item.starred ? (
-                      <Star size={18} className="fill-accent text-accent" />
-                    ) : (
-                      <StarOff size={18} />
-                    )}
-                  </button>
                   {item.highRisk && (
                     <AlertTriangle size={16} className="shrink-0 text-destructive" aria-label="Riesgo alto" />
                   )}
@@ -252,7 +234,11 @@ function ProfessorInboxContent() {
                         variant="secondary"
                         className={`shrink-0 ${phaseLabels[item.phase]?.color || ""}`}
                       >
-                        Fase {item.phase}
+                        {item.phase === 5 ? (
+                          <><Lock size={10} className="mr-1" />Cerrado</>
+                        ) : (
+                          `Fase ${item.phase}`
+                        )}
                       </Badge>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
   Plus,
   Pencil,
@@ -10,6 +10,9 @@ import {
   BookText,
   Settings,
   Search,
+  Upload,
+  FileSpreadsheet,
+  X,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -44,6 +47,7 @@ import {
   type SystemUser,
   type UserRole,
   type CaseArea,
+  type DocType,
 } from "@/lib/mock-data"
 
 // Extended user type for this page (adds fields not in base SystemUser)
@@ -60,6 +64,11 @@ const initialUsers: ExtendedUser[] = mockUsers.map((u) => ({
 }))
 
 const AREAS: CaseArea[] = ["Penal", "Civil", "Laboral", "Familia", "Derecho Publico"]
+const DOC_TYPES: { value: DocType; label: string }[] = [
+  { value: "C.C.", label: "Cedula de Ciudadania (C.C.)" },
+  { value: "T.I.", label: "Tarjeta de Identidad (T.I.)" },
+  { value: "C.E.", label: "Cedula de Extranjeria (C.E.)" },
+]
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "estudiante", label: "Estudiante" },
   { value: "profesor", label: "Profesor" },
@@ -78,6 +87,8 @@ const emptyForm = {
   role: "" as UserRole | "",
   area: "" as CaseArea | "",
   semestre: "",
+  docType: "" as DocType | "",
+  docNumber: "",
 }
 
 export default function UsuariosPage() {
@@ -89,10 +100,16 @@ export default function UsuariosPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showBulkUploadDialog, setShowBulkUploadDialog] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState(emptyForm)
   const [selectedUser, setSelectedUser] = useState<ExtendedUser | null>(null)
+
+  // Bulk upload
+  const [bulkFile, setBulkFile] = useState<{ name: string; size: string } | null>(null)
+  const [bulkUploadStatus, setBulkUploadStatus] = useState<"idle" | "processing" | "done">("idle")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Stats
   const totalUsers = users.length
@@ -131,11 +148,13 @@ export default function UsuariosPage() {
     },
   ]
 
-  // Filtered users
+  // Filtered users - now also searches by document number
   const filteredUsers = users.filter((u) => {
+    const q = searchQuery.toLowerCase()
     const matchesSearch =
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase())
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      (u.docNumber && u.docNumber.includes(q))
     const matchesRole = roleFilter === "todos" || u.role === roleFilter
     return matchesSearch && matchesRole
   })
@@ -147,17 +166,21 @@ export default function UsuariosPage() {
   }
 
   function handleCreate() {
-    if (!formData.name || !formData.email || !formData.role) return
+    if (!formData.name || !formData.email || !formData.role || !formData.docType || !formData.docNumber) return
 
     const newUser: ExtendedUser = {
       id: `u${Date.now()}`,
       name: formData.name,
       email: formData.email,
       role: formData.role as UserRole,
-      area: formData.role !== "administrativo" && formData.area ? (formData.area as CaseArea) : undefined,
+      area: formData.role === "profesor" && formData.area ? (formData.area as CaseArea) : undefined,
       activeCases: 0,
+      totalPracticeHours: 0,
+      semester: formData.role === "estudiante" && formData.semestre ? `${formData.semestre}vo Semestre` : "",
       semestre: formData.role === "estudiante" && formData.semestre ? Number(formData.semestre) : undefined,
       horasPractica: formData.role === "estudiante" ? 0 : undefined,
+      docType: formData.docType as DocType,
+      docNumber: formData.docNumber,
     }
 
     setUsers((prev) => [...prev, newUser])
@@ -173,12 +196,14 @@ export default function UsuariosPage() {
       role: user.role,
       area: user.area || "",
       semestre: user.semestre ? String(user.semestre) : "",
+      docType: user.docType || "",
+      docNumber: user.docNumber || "",
     })
     setShowEditDialog(true)
   }
 
   function handleEdit() {
-    if (!selectedUser || !formData.name || !formData.email || !formData.role) return
+    if (!selectedUser || !formData.name || !formData.email || !formData.role || !formData.docType || !formData.docNumber) return
 
     setUsers((prev) =>
       prev.map((u) =>
@@ -189,7 +214,7 @@ export default function UsuariosPage() {
               email: formData.email,
               role: formData.role as UserRole,
               area:
-                (formData.role as UserRole) !== "administrativo" && formData.area
+                (formData.role as UserRole) === "profesor" && formData.area
                   ? (formData.area as CaseArea)
                   : undefined,
               semestre:
@@ -198,6 +223,8 @@ export default function UsuariosPage() {
                   : undefined,
               horasPractica:
                 (formData.role as UserRole) === "estudiante" ? u.horasPractica : undefined,
+              docType: formData.docType as DocType,
+              docNumber: formData.docNumber,
             }
           : u
       )
@@ -219,14 +246,63 @@ export default function UsuariosPage() {
     setSelectedUser(null)
   }
 
+  function handleBulkFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) {
+      const ext = file.name.split(".").pop()?.toLowerCase()
+      if (ext === "csv" || ext === "xlsx" || ext === "xls") {
+        setBulkFile({ name: file.name, size: `${(file.size / 1024).toFixed(0)} KB` })
+      }
+    }
+  }
+
+  function handleBulkUpload() {
+    if (!bulkFile) return
+    setBulkUploadStatus("processing")
+    setTimeout(() => {
+      setBulkUploadStatus("done")
+      // Simulate adding students
+      const newStudents: ExtendedUser[] = [
+        {
+          id: `u${Date.now()}`,
+          name: "Estudiante Carga 1",
+          email: "ecarga1@universidad.edu.co",
+          role: "estudiante",
+          activeCases: 0,
+          totalPracticeHours: 0,
+          semester: "7mo Semestre",
+          semestre: 7,
+          horasPractica: 0,
+          docType: "C.C.",
+          docNumber: "1112223334",
+        },
+        {
+          id: `u${Date.now() + 1}`,
+          name: "Estudiante Carga 2",
+          email: "ecarga2@universidad.edu.co",
+          role: "estudiante",
+          activeCases: 0,
+          totalPracticeHours: 0,
+          semester: "8vo Semestre",
+          semestre: 8,
+          horasPractica: 0,
+          docType: "T.I.",
+          docNumber: "1009876543",
+        },
+      ]
+      setUsers((prev) => [...prev, ...newStudents])
+    }, 1500)
+  }
+
   // Shared form fields used in both Create and Edit dialogs
   function renderFormFields() {
-    const showAreaField = formData.role === "estudiante" || formData.role === "profesor"
+    // Students rotate through all areas - no area field for them
+    const showAreaField = formData.role === "profesor"
 
     return (
       <div className="flex flex-col gap-4 py-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="userName">Nombre completo</Label>
+          <Label htmlFor="userName">Nombre completo <span className="text-destructive">*</span></Label>
           <Input
             id="userName"
             placeholder="Ej: Maria Gonzalez"
@@ -236,7 +312,7 @@ export default function UsuariosPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="userEmail">Correo electronico</Label>
+          <Label htmlFor="userEmail">Correo electronico <span className="text-destructive">*</span></Label>
           <Input
             id="userEmail"
             type="email"
@@ -246,15 +322,48 @@ export default function UsuariosPage() {
           />
         </div>
 
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="userDocType">Tipo de documento <span className="text-destructive">*</span></Label>
+            <Select
+              value={formData.docType}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, docType: value as DocType }))
+              }
+            >
+              <SelectTrigger id="userDocType">
+                <SelectValue placeholder="Seleccionar tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {DOC_TYPES.map((dt) => (
+                  <SelectItem key={dt.value} value={dt.value}>
+                    {dt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="userDocNumber">Numero de documento <span className="text-destructive">*</span></Label>
+            <Input
+              id="userDocNumber"
+              placeholder="Ej: 1023456789"
+              value={formData.docNumber}
+              onChange={(e) => setFormData((prev) => ({ ...prev, docNumber: e.target.value }))}
+              className="font-mono"
+            />
+          </div>
+        </div>
+
         <div className="flex flex-col gap-2">
-          <Label htmlFor="userRole">Rol</Label>
+          <Label htmlFor="userRole">Rol <span className="text-destructive">*</span></Label>
           <Select
             value={formData.role}
             onValueChange={(value) =>
               setFormData((prev) => ({
                 ...prev,
                 role: value as UserRole,
-                area: value === "administrativo" ? "" : prev.area,
+                area: value === "administrativo" || value === "estudiante" ? "" : prev.area,
                 semestre: value !== "estudiante" ? "" : prev.semestre,
               }))
             }
@@ -271,6 +380,14 @@ export default function UsuariosPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {formData.role === "estudiante" && (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              Los estudiantes rotan por todas las areas juridicas. No se requiere asignar un area especifica.
+            </p>
+          </div>
+        )}
 
         {showAreaField && (
           <div className="flex flex-col gap-2">
@@ -315,6 +432,8 @@ export default function UsuariosPage() {
     )
   }
 
+  const isFormValid = formData.name && formData.email && formData.role && formData.docType && formData.docNumber
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
@@ -322,10 +441,17 @@ export default function UsuariosPage() {
         <h1 className="text-2xl font-bold text-foreground heading-accent pb-2">
           Gestion de Usuarios
         </h1>
-        <Button onClick={handleOpenCreate} className="flex items-center gap-2 w-fit">
-          <Plus size={16} aria-hidden="true" />
-          Nuevo Usuario
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setShowBulkUploadDialog(true); setBulkFile(null); setBulkUploadStatus("idle") }} className="flex items-center gap-2 bg-transparent">
+            <Upload size={16} aria-hidden="true" />
+            <span className="hidden sm:inline">Carga Masiva Estudiantes</span>
+            <span className="sm:hidden">Carga CSV</span>
+          </Button>
+          <Button onClick={handleOpenCreate} className="flex items-center gap-2 w-fit">
+            <Plus size={16} aria-hidden="true" />
+            Nuevo Usuario
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -354,7 +480,7 @@ export default function UsuariosPage() {
             aria-hidden="true"
           />
           <Input
-            placeholder="Buscar por nombre o correo..."
+            placeholder="Buscar por nombre, correo o No. documento..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -385,11 +511,9 @@ export default function UsuariosPage() {
                   <TableHead>Nombre</TableHead>
                   <TableHead className="hidden sm:table-cell">Email</TableHead>
                   <TableHead>Rol</TableHead>
-                  <TableHead className="hidden md:table-cell">Area</TableHead>
+                  <TableHead className="hidden md:table-cell">Documento</TableHead>
+                  <TableHead className="hidden lg:table-cell">Area</TableHead>
                   <TableHead className="text-center">Casos activos</TableHead>
-                  <TableHead className="hidden lg:table-cell text-center">
-                    Horas practica
-                  </TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -419,14 +543,17 @@ export default function UsuariosPage() {
                           {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
-                        {user.area || "N/A"}
+                      <TableCell className="hidden md:table-cell">
+                        <div className="flex flex-col">
+                          <span className="font-mono text-sm text-foreground">{user.docNumber || "—"}</span>
+                          <span className="text-xs text-muted-foreground">{user.docType || ""}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-muted-foreground">
+                        {user.role === "estudiante" ? "Rotacion" : (user.area || "N/A")}
                       </TableCell>
                       <TableCell className="text-center text-foreground">
                         {user.activeCases}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-center text-muted-foreground">
-                        {user.horasPractica !== undefined ? `${user.horasPractica}h` : "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -470,7 +597,7 @@ export default function UsuariosPage() {
           <DialogHeader>
             <DialogTitle>Crear Nuevo Usuario</DialogTitle>
             <DialogDescription>
-              Complete los datos del nuevo usuario del sistema.
+              Complete los datos del nuevo usuario del sistema. Los campos con <span className="text-destructive">*</span> son obligatorios.
             </DialogDescription>
           </DialogHeader>
           {renderFormFields()}
@@ -480,7 +607,7 @@ export default function UsuariosPage() {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!formData.name || !formData.email || !formData.role}
+              disabled={!isFormValid}
             >
               Crear Usuario
             </Button>
@@ -505,7 +632,7 @@ export default function UsuariosPage() {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={!formData.name || !formData.email || !formData.role}
+              disabled={!isFormValid}
             >
               Guardar Cambios
             </Button>
@@ -529,6 +656,9 @@ export default function UsuariosPage() {
               <div className="flex flex-col gap-1 text-sm">
                 <p>
                   <span className="font-medium">Nombre:</span> {selectedUser.name}
+                </p>
+                <p>
+                  <span className="font-medium">Documento:</span> {selectedUser.docType} {selectedUser.docNumber}
                 </p>
                 <p>
                   <span className="font-medium">Email:</span> {selectedUser.email}
@@ -557,6 +687,125 @@ export default function UsuariosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Upload Dialog */}
+      <Dialog open={showBulkUploadDialog} onOpenChange={setShowBulkUploadDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Carga Masiva de Estudiantes</DialogTitle>
+            <DialogDescription>
+              Suba un archivo Excel (.xlsx) o CSV (.csv) con los datos de los estudiantes para registrarlos masivamente.
+              El archivo debe contener las columnas: Nombre, Email, Tipo Documento, Numero Documento, Semestre.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            {bulkUploadStatus === "done" ? (
+              <div className="flex flex-col items-center gap-3 rounded-lg border border-success/30 bg-success/10 p-6 text-center">
+                <CheckCircle size={32} className="text-success" />
+                <p className="text-sm font-medium text-success">Carga completada exitosamente</p>
+                <p className="text-xs text-muted-foreground">Se registraron 2 estudiantes nuevos en el sistema.</p>
+              </div>
+            ) : (
+              <>
+                <div
+                  className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 text-center transition-colors hover:border-primary/50 cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Seleccionar archivo Excel o CSV"
+                >
+                  <FileSpreadsheet size={32} className="text-muted-foreground" aria-hidden="true" />
+                  <p className="text-sm text-foreground">
+                    Haz clic para seleccionar archivo
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Formatos aceptados: .xlsx, .xls, .csv
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    className="hidden"
+                    onChange={handleBulkFileSelect}
+                  />
+                </div>
+
+                {bulkFile && (
+                  <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+                    <FileSpreadsheet size={20} className="shrink-0 text-success" aria-hidden="true" />
+                    <div className="flex flex-1 flex-col">
+                      <span className="text-sm font-medium text-foreground">{bulkFile.name}</span>
+                      <span className="text-xs text-muted-foreground">{bulkFile.size}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setBulkFile(null)}
+                      aria-label="Eliminar archivo"
+                    >
+                      <X size={16} />
+                    </Button>
+                  </div>
+                )}
+
+                {bulkUploadStatus === "processing" && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    Procesando archivo...
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <p className="text-xs font-medium text-foreground mb-1">Formato esperado del archivo:</p>
+              <div className="overflow-x-auto">
+                <table className="text-xs text-muted-foreground">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="pr-3 py-1 text-left font-medium">Nombre</th>
+                      <th className="pr-3 py-1 text-left font-medium">Email</th>
+                      <th className="pr-3 py-1 text-left font-medium">Tipo Doc</th>
+                      <th className="pr-3 py-1 text-left font-medium">No. Doc</th>
+                      <th className="py-1 text-left font-medium">Semestre</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="pr-3 py-1">Juan Perez</td>
+                      <td className="pr-3 py-1">jperez@uni.co</td>
+                      <td className="pr-3 py-1">C.C.</td>
+                      <td className="pr-3 py-1">1023456</td>
+                      <td className="py-1">8</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkUploadDialog(false)}>
+              {bulkUploadStatus === "done" ? "Cerrar" : "Cancelar"}
+            </Button>
+            {bulkUploadStatus !== "done" && (
+              <Button onClick={handleBulkUpload} disabled={!bulkFile || bulkUploadStatus === "processing"}>
+                <Upload size={14} className="mr-2" />
+                Cargar Estudiantes
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+function CheckCircle({ size, className }: { size: number; className: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <path d="M22 4 12 14.01l-3-3" />
+    </svg>
   )
 }

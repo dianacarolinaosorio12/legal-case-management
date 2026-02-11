@@ -95,25 +95,23 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col">
               <span className="text-3xl font-bold tracking-tight text-white">SICOP</span>
-              <span className="text-sm text-white/50 font-light tracking-wide">Sistema de Control de Procesos</span>
+              <span className="text-sm text-white/50 font-light tracking-wide">Sistema de Control de Prácticas</span>
             </div>
           </div>
 
           <div className="flex flex-col gap-5">
             <h2 className="text-3xl font-bold text-white leading-tight">
               Consultorio Juridico<br />
-              <span className="bg-gradient-to-r from-amber-300 to-amber-400 bg-clip-text text-transparent">Universitario</span>
+              <span className="bg-gradient-to-r from-amber-300 to-amber-400 bg-clip-text text-transparent">Centro de Conciliación</span>
             </h2>
             <p className="text-white/50 text-base leading-relaxed max-w-sm">
-              Plataforma integral de gestion de casos juridicos. Control, seguimiento y trazabilidad de expedientes digitales.
+              Casos de procesos juridicos, Control de terminos, seguimientos y trazabilidad de expedientes.
             </p>
           </div>
 
           <div className="mt-14 flex flex-col gap-5">
             {[
-              { icon: FileText, text: "Gestion de expedientes digitales" },
-              { icon: Users, text: "Colaboracion profesor-estudiante en tiempo real" },
-              { icon: ShieldCheck, text: "Trazabilidad y auditoria completa" },
+            
             ].map((feature) => (
               <div key={feature.text} className="flex items-center gap-4 group">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.08] border border-white/10 group-hover:bg-amber-300/10 transition-colors">
@@ -143,7 +141,7 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col">
               <span className="text-2xl font-bold tracking-tight text-primary">SICOP</span>
-              <span className="text-xs text-muted-foreground leading-none">Sistema de Control de Procesos</span>
+              <span className="text-xs text-muted-foreground leading-none">Sistema de Control de Practicas</span>
             </div>
           </div>
 

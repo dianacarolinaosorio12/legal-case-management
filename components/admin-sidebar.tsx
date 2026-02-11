@@ -10,6 +10,7 @@ import {
   Scale,
   Shield,
   Calendar,
+  Clock,
 } from "lucide-react"
 import {
   Sidebar,
@@ -28,6 +29,7 @@ const navItems = [
   { label: "Panel General", href: "/admin", icon: LayoutDashboard },
   { label: "Usuarios", href: "/admin/usuarios", icon: Users },
   { label: "Practicas", href: "/admin/practicas", icon: GraduationCap },
+  { label: "Terminos Procesales", href: "/admin/terminos", icon: Clock },
   { label: "Reportes", href: "/admin/reportes", icon: FileBarChart },
   { label: "Auditoria", href: "/admin/auditoria", icon: Shield },
   { label: "Calendario", href: "/admin/calendario", icon: Calendar },

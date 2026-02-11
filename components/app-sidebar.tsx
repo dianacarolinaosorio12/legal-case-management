@@ -44,7 +44,7 @@ export function AppSidebar() {
             <span className="text-lg font-bold tracking-tight text-white">
               SICOP
             </span>
-            <span className="text-xs text-sidebar-foreground/60">Control de Procesos</span>
+            <span className="text-xs text-sidebar-foreground/60">Sistema de Control de Prácticas</span>
           </div>
         </Link>
       </SidebarHeader>
@@ -84,7 +84,7 @@ export function AppSidebar() {
             {studentName}
           </p>
           <p className="text-[10px] text-sidebar-foreground/40 leading-tight">
-            Consultorio Juridico Universitario
+            Consultorio Juridico
           </p>
         </div>
       </SidebarFooter>

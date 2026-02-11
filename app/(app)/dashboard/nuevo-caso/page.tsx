@@ -18,9 +18,7 @@ import {
   Bold,
   Italic,
   Underline,
-  List,
-  ListOrdered,
-  Clock,
+  FileSpreadsheet,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -76,17 +74,14 @@ export default function NuevoCasoPage() {
   const [hasPensionData, setHasPensionData] = useState(false)
   const [reservedNotes, setReservedNotes] = useState("")
 
-  // RF-22: Rich text editor state (simplified)
+  // RF-22: Rich text editor state
   const [interviewNotes, setInterviewNotes] = useState("")
-  const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set())
 
-  // Horas de práctica estimadas
-  const [estimatedHours, setEstimatedHours] = useState("")
-
-  // RF-07: Procesal deadlines
-  const [deadlines, setDeadlines] = useState([
-    { name: "", dueDate: "" },
-  ])
+  // "Otros" custom values for selects
+  const [caseType, setCaseType] = useState("")
+  const [customCaseType, setCustomCaseType] = useState("")
+  const [area, setArea] = useState("")
+  const [customArea, setCustomArea] = useState("")
 
   const [files, setFiles] = useState<UploadedFile[]>([
     { name: "poder_notariado.pdf", size: "1.2 MB", type: "pdf", progress: 100 },
@@ -110,23 +105,6 @@ export default function NuevoCasoPage() {
       progress: 100,
     }))
     setFiles((prev) => [...prev, ...newFiles])
-  }
-
-  function toggleFormat(format: string) {
-    setActiveFormats((prev) => {
-      const next = new Set(prev)
-      if (next.has(format)) next.delete(format)
-      else next.add(format)
-      return next
-    })
-  }
-
-  function addDeadline() {
-    setDeadlines((prev) => [...prev, { name: "", dueDate: "" }])
-  }
-
-  function removeDeadline(index: number) {
-    setDeadlines((prev) => prev.filter((_, i) => i !== index))
   }
 
   // RF-10/RF-26: Simulated AI analysis
@@ -205,26 +183,45 @@ export default function NuevoCasoPage() {
             <div className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="caseType" className="text-base">
-                  Tipo de proceso
+                  Tipo de Actuacion
                 </Label>
-                <Select>
+                <Select value={caseType} onValueChange={setCaseType}>
                   <SelectTrigger id="caseType" className="h-12">
-                    <SelectValue placeholder="Seleccione el tipo de proceso" />
+                    <SelectValue placeholder="Seleccione el tipo de actuacion" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="tutela">Tutela</SelectItem>
                     <SelectItem value="demanda">Demanda</SelectItem>
                     <SelectItem value="derecho-peticion">Derecho de peticion</SelectItem>
                     <SelectItem value="consulta">Consulta</SelectItem>
+                    <SelectItem value="Descargos">Descargos</SelectItem>
+                    <SelectItem value="alegatos precalificatorios">Alegatos precalificatorios</SelectItem>
+                    <SelectItem value="alegato de conclusion">Alegato de conclusion</SelectItem>
+                    <SelectItem value="nulidades">Nulidades</SelectItem>
+                    <SelectItem value="Recurso">Recurso</SelectItem>
+                    <SelectItem value="demanda de cumplimiento">Demanda de cumplimiento</SelectItem>
+                    <SelectItem value="liquidación">Liquidacion</SelectItem>
+                    <SelectItem value="seguridad social">Seguridad Social</SelectItem>
+                    <SelectItem value="pensiones">Pensiones</SelectItem>
+                    <SelectItem value="conciliación">Conciliacion</SelectItem>
+                    <SelectItem value="otros">Otros</SelectItem>
                   </SelectContent>
                 </Select>
+                {caseType === "otros" && (
+                  <Input
+                    placeholder="Especifique el tipo de actuacion"
+                    className="h-12"
+                    value={customCaseType}
+                    onChange={(e) => setCustomCaseType(e.target.value)}
+                  />
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="area" className="text-base">
                   Area juridica
                 </Label>
-                <Select>
+                <Select value={area} onValueChange={setArea}>
                   <SelectTrigger id="area" className="h-12">
                     <SelectValue placeholder="Seleccione el area juridica" />
                   </SelectTrigger>
@@ -234,98 +231,43 @@ export default function NuevoCasoPage() {
                     <SelectItem value="laboral">Laboral</SelectItem>
                     <SelectItem value="familia">Familia</SelectItem>
                     <SelectItem value="publico">Derecho Publico</SelectItem>
+                    <SelectItem value="derecho disciplinario">Derecho Disciplinario</SelectItem>
+                    <SelectItem value="responsabilidad fiscal">Responsabilidad Fiscal</SelectItem>
+                    <SelectItem value="constitucional">Constitucional</SelectItem>
+                    <SelectItem value="comercial">Comercial</SelectItem>
+                    <SelectItem value="sucesiones">Sucesiones</SelectItem>
+                    <SelectItem value="conciliación">Conciliacion</SelectItem>
+                    <SelectItem value="transito">Transito</SelectItem>
+                    <SelectItem value="otros">Otros</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="radicadoExt" className="text-base">
-                    Radicado externo{" "}
-                    <span className="text-sm font-normal text-muted-foreground">(si aplica)</span>
-                  </Label>
+                {area === "otros" && (
                   <Input
-                    id="radicadoExt"
-                    placeholder="Ej: 2024-00123"
-                    className="h-12 font-mono"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="estimatedHours" className="text-base">
-                    Horas estimadas de practica
-                  </Label>
-                  <Input
-                    id="estimatedHours"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    placeholder="Ej: 10"
+                    placeholder="Especifique el area juridica"
                     className="h-12"
-                    value={estimatedHours}
-                    onChange={(e) => setEstimatedHours(e.target.value)}
+                    value={customArea}
+                    onChange={(e) => setCustomArea(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Horas que dedicara el estudiante a este caso (contabiliza practicas)
-                  </p>
-                </div>
+                )}
               </div>
 
-              {/* RF-07: Procesal deadlines */}
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base">Terminos procesales</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addDeadline} className="bg-transparent">
-                    + Agregar termino
-                  </Button>
-                </div>
-                {deadlines.map((dl, i) => (
-                  <div key={i} className="flex items-end gap-3">
-                    <div className="flex flex-1 flex-col gap-1">
-                      <Label htmlFor={`dl-name-${i}`} className="text-sm text-muted-foreground">
-                        Actuacion procesal
-                      </Label>
-                      <Input
-                        id={`dl-name-${i}`}
-                        placeholder="Ej: Radicacion demanda"
-                        className="h-10"
-                        value={dl.name}
-                        onChange={(e) => {
-                          const updated = [...deadlines]
-                          updated[i].name = e.target.value
-                          setDeadlines(updated)
-                        }}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor={`dl-date-${i}`} className="text-sm text-muted-foreground">
-                        Fecha limite
-                      </Label>
-                      <Input
-                        id={`dl-date-${i}`}
-                        type="date"
-                        className="h-10 w-40"
-                        value={dl.dueDate}
-                        onChange={(e) => {
-                          const updated = [...deadlines]
-                          updated[i].dueDate = e.target.value
-                          setDeadlines(updated)
-                        }}
-                      />
-                    </div>
-                    {deadlines.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-10 w-10 shrink-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeDeadline(i)}
-                        aria-label="Eliminar termino"
-                      >
-                        <X size={16} />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="radicadoExt" className="text-base">
+                  Radicado externo{" "}
+                  <span className="text-sm font-normal text-muted-foreground">(si aplica)</span>
+                </Label>
+                <Input
+                  id="radicadoExt"
+                  placeholder="Ej: 2024-00123"
+                  className="h-12 font-mono"
+                />
+              </div>
+
+              {/* Terminos procesales - placeholder */}
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground">
+                  Los terminos procesales se calcularan automaticamente segun la configuracion del sistema.
+                </p>
               </div>
             </div>
           )}
@@ -336,7 +278,7 @@ export default function NuevoCasoPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="docType" className="text-base">
-                    Tipo de documento
+                    Tipo de documento <span className="text-destructive">*</span>
                   </Label>
                   <Select>
                     <SelectTrigger id="docType" className="h-12">
@@ -345,6 +287,7 @@ export default function NuevoCasoPage() {
                     <SelectContent>
                       <SelectItem value="cc">Cedula de Ciudadania</SelectItem>
                       <SelectItem value="ce">Cedula de Extranjeria</SelectItem>
+                      <SelectItem value="ti">Tarjeta de Identidad (T.I.)</SelectItem>
                       <SelectItem value="pasaporte">Pasaporte</SelectItem>
                       <SelectItem value="nit">NIT</SelectItem>
                     </SelectContent>
@@ -352,29 +295,37 @@ export default function NuevoCasoPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="docNumber" className="text-base">
-                    Numero de documento
+                    Numero de documento <span className="text-destructive">*</span>
                   </Label>
                   <Input id="docNumber" placeholder="Ej: 1023456789" className="h-12 font-mono" />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="fullName" className="text-base">
-                  Nombre completo
-                </Label>
-                <Input id="fullName" placeholder="Nombre y apellidos" className="h-12" />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="firstName" className="text-base">
+                    Nombres <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="firstName" placeholder="Ej: Juan Carlos" className="h-12" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="lastName" className="text-base">
+                    Apellidos <span className="text-destructive">*</span>
+                  </Label>
+                  <Input id="lastName" placeholder="Ej: Rodriguez Lopez" className="h-12" />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="phone" className="text-base">
-                    Telefono
+                    Telefono <span className="text-destructive">*</span>
                   </Label>
                   <Input id="phone" type="tel" placeholder="Ej: 3101234567" className="h-12" />
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="clientEmail" className="text-base">
-                    Correo electronico
+                    Correo electronico <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="clientEmail"
@@ -387,7 +338,8 @@ export default function NuevoCasoPage() {
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="address" className="text-base">
-                  Direccion
+                  Direccion{" "}
+                  <span className="text-sm font-normal text-muted-foreground">(Opcional)</span>
                 </Label>
                 <Input id="address" placeholder="Direccion de residencia" className="h-12" />
               </div>
@@ -478,82 +430,66 @@ export default function NuevoCasoPage() {
             </div>
           )}
 
-          {/* Step 3: RF-22 Rich Text Editor for Interview Notes */}
+          {/* Step 3: RF-22 Rich Text Editor for Interview Notes + Concepto Juridico */}
           {currentStep === 3 && (
             <div className="flex flex-col gap-5">
+              {/* Nuevo Expediente Digital - Editor de entrevista */}
               <div className="flex flex-col gap-2">
-                <Label className="text-base">Notas de la entrevista inicial</Label>
+                <Label className="text-base">Nuevo Expediente Digital - Notas de la entrevista inicial</Label>
                 <p className="text-sm text-muted-foreground">
                   Utilice el editor para registrar los hechos relevantes de la entrevista con el solicitante.
+                  Solo se permiten formatos basicos: negrita, cursiva y subrayado. Sin cambio de colores ni tipografia.
                 </p>
               </div>
 
-              {/* Simplified rich text toolbar */}
+              {/* Rich text editor with contentEditable */}
               <div className="rounded-lg border border-border">
                 <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/50 px-2 py-1.5">
                   <Button
                     type="button"
-                    variant={activeFormats.has("bold") ? "default" : "ghost"}
+                    variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
-                    onClick={() => toggleFormat("bold")}
+                    className="h-8 w-8 hover:bg-background"
+                    onClick={() => document.execCommand("bold", false)}
                     aria-label="Negrita"
-                    aria-pressed={activeFormats.has("bold")}
                   >
                     <Bold size={16} />
                   </Button>
                   <Button
                     type="button"
-                    variant={activeFormats.has("italic") ? "default" : "ghost"}
+                    variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
-                    onClick={() => toggleFormat("italic")}
+                    className="h-8 w-8 hover:bg-background"
+                    onClick={() => document.execCommand("italic", false)}
                     aria-label="Cursiva"
-                    aria-pressed={activeFormats.has("italic")}
                   >
                     <Italic size={16} />
                   </Button>
                   <Button
                     type="button"
-                    variant={activeFormats.has("underline") ? "default" : "ghost"}
+                    variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
-                    onClick={() => toggleFormat("underline")}
+                    className="h-8 w-8 hover:bg-background"
+                    onClick={() => document.execCommand("underline", false)}
                     aria-label="Subrayado"
-                    aria-pressed={activeFormats.has("underline")}
                   >
                     <Underline size={16} />
                   </Button>
-                  <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
-                  <Button
-                    type="button"
-                    variant={activeFormats.has("ul") ? "default" : "ghost"}
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => toggleFormat("ul")}
-                    aria-label="Lista con vinetas"
-                    aria-pressed={activeFormats.has("ul")}
-                  >
-                    <List size={16} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={activeFormats.has("ol") ? "default" : "ghost"}
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => toggleFormat("ol")}
-                    aria-label="Lista numerada"
-                    aria-pressed={activeFormats.has("ol")}
-                  >
-                    <ListOrdered size={16} />
-                  </Button>
                 </div>
-                <textarea
-                  className="min-h-[200px] w-full resize-y bg-card p-4 text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
-                  placeholder="Describa los hechos relevantes de la entrevista inicial. Incluya fechas, personas involucradas, pretensiones del solicitante y cualquier dato relevante para el caso..."
-                  value={interviewNotes}
-                  onChange={(e) => setInterviewNotes(e.target.value)}
+                <div
+                  contentEditable
+                  spellCheck={true}
+                  className="min-h-[200px] w-full resize-y bg-card p-4 font-serif text-base leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-primary/20 empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground"
+                  data-placeholder="Describa los hechos relevantes de la entrevista inicial. Incluya fechas, personas involucradas, pretensiones del solicitante y cualquier dato relevante para el caso..."
+                  onInput={(e) => setInterviewNotes((e.target as HTMLDivElement).innerHTML)}
+                  role="textbox"
                   aria-label="Editor de notas de entrevista"
+                  aria-multiline="true"
+                  onPaste={(e) => {
+                    e.preventDefault()
+                    const text = e.clipboardData.getData("text/plain")
+                    document.execCommand("insertText", false, text)
+                  }}
                 />
               </div>
 
@@ -561,7 +497,65 @@ export default function NuevoCasoPage() {
                 <Shield size={20} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <p className="text-sm text-muted-foreground">
                   Incluya detalles como: fecha de los hechos, relacion entre las partes, pretensiones especificas y documentos que el solicitante mencione tener.
+                  Correccion ortografica automatica habilitada. Sin limite de caracteres.
                 </p>
+              </div>
+
+              {/* Concepto o Actuacion Juridica */}
+              <div className="flex flex-col gap-2 mt-4">
+                <Label className="text-base">Concepto o Actuacion Juridica</Label>
+                <p className="text-sm text-muted-foreground">
+                  Redacte el concepto juridico utilizando terminologia de derecho. Mismo formato: solo negrita, cursiva y subrayado.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border">
+                <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/50 px-2 py-1.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 hover:bg-background"
+                    onClick={() => document.execCommand("bold", false)}
+                    aria-label="Negrita"
+                  >
+                    <Bold size={16} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 hover:bg-background"
+                    onClick={() => document.execCommand("italic", false)}
+                    aria-label="Cursiva"
+                  >
+                    <Italic size={16} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 hover:bg-background"
+                    onClick={() => document.execCommand("underline", false)}
+                    aria-label="Subrayado"
+                  >
+                    <Underline size={16} />
+                  </Button>
+                </div>
+                <div
+                  contentEditable
+                  spellCheck={true}
+                  className="min-h-[200px] w-full resize-y bg-card p-4 font-serif text-base leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-primary/20 empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground"
+                  data-placeholder="Escriba el concepto o actuacion juridica correspondiente al caso. Utilice terminologia juridica apropiada..."
+                  role="textbox"
+                  aria-label="Editor de concepto juridico"
+                  aria-multiline="true"
+                  onPaste={(e) => {
+                    e.preventDefault()
+                    const text = e.clipboardData.getData("text/plain")
+                    document.execCommand("insertText", false, text)
+                  }}
+                />
               </div>
             </div>
           )}
@@ -583,7 +577,7 @@ export default function NuevoCasoPage() {
                   Arrastra archivos aqui o haz clic para seleccionar
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Formatos aceptados: PDF, DOC, DOCX, JPG, PNG (Max 10 MB)
+                  Formatos aceptados: PDF, Word (DOC, DOCX), Excel (XLS, XLSX), TXT (Max 100 MB)
                 </p>
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <div className="flex items-center gap-1">
@@ -592,11 +586,15 @@ export default function NuevoCasoPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <FileIcon size={16} aria-hidden="true" />
-                    <span className="text-xs">DOCX</span>
+                    <span className="text-xs">DOC/DOCX</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FileSpreadsheet size={16} aria-hidden="true" />
+                    <span className="text-xs">XLS/XLSX</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <FileText size={16} aria-hidden="true" />
-                    <span className="text-xs">JPG/PNG</span>
+                    <span className="text-xs">TXT</span>
                   </div>
                 </div>
               </div>
@@ -649,21 +647,6 @@ export default function NuevoCasoPage() {
                 </div>
               )}
 
-            </div>
-          )}
-
-          {/* Resumen de horas de práctica */}
-          {currentStep === steps.length && (
-            <div className="mt-6 flex items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 p-4">
-              <Clock size={20} className="shrink-0 text-accent-foreground" aria-hidden="true" />
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-semibold text-foreground">
-                  Horas de practica estimadas: {estimatedHours || "0"}h
-                </span>
-                <p className="text-xs text-muted-foreground">
-                  Estas horas se sumaran al registro de practicas del estudiante al crear el expediente.
-                </p>
-              </div>
             </div>
           )}
 
