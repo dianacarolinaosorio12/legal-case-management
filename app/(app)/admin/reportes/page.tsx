@@ -15,7 +15,32 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { mockCases, mockUsers } from "@/lib/mock-data"
+
+// ── Period selector constants ────────────────────────────────────────
+const MONTHS = [
+  { value: "01", label: "Enero" },
+  { value: "02", label: "Febrero" },
+  { value: "03", label: "Marzo" },
+  { value: "04", label: "Abril" },
+  { value: "05", label: "Mayo" },
+  { value: "06", label: "Junio" },
+  { value: "07", label: "Julio" },
+  { value: "08", label: "Agosto" },
+  { value: "09", label: "Septiembre" },
+  { value: "10", label: "Octubre" },
+  { value: "11", label: "Noviembre" },
+  { value: "12", label: "Diciembre" },
+]
+
+const YEARS = ["2024", "2025", "2026"]
 
 // ── Quick stats computed from mock data ─────────────────────────────
 const totalCases = mockCases.length
@@ -119,6 +144,15 @@ const reports = [
 
 export default function ReportesPage() {
   const [downloading, setDownloading] = useState<string | null>(null)
+  const [periodo, setPeriodo] = useState<"mensual" | "anual">("mensual")
+  const [selectedMonth, setSelectedMonth] = useState("02")
+  const [selectedYear, setSelectedYear] = useState("2026")
+
+  const monthLabel = MONTHS.find((m) => m.value === selectedMonth)?.label ?? ""
+  const periodLabel =
+    periodo === "mensual"
+      ? `${monthLabel} ${selectedYear}`
+      : `Ano ${selectedYear}`
 
   function handleDownload(filename: string, format: "pdf" | "xlsx") {
     const fullName = `${filename}.${format}`
@@ -142,7 +176,70 @@ export default function ReportesPage() {
         </p>
       </div>
 
+      {/* Period Selector */}
+      <Card className="border-border shadow-card">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
+          {/* Periodo type */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Periodo</label>
+            <Select
+              value={periodo}
+              onValueChange={(v: "mensual" | "anual") => setPeriodo(v)}
+            >
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Seleccionar periodo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mensual">Mensual</SelectItem>
+                <SelectItem value="anual">Anual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Month selector — only when Mensual */}
+          {periodo === "mensual" && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Mes</label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Seleccionar mes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Year selector — always visible */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Ano</label>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Seleccionar ano" />
+              </SelectTrigger>
+              <SelectContent>
+                {YEARS.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Quick Stats */}
+      <div>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">
+          Estadisticas &mdash; {periodLabel}
+        </h2>
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {quickStats.map((stat) => (
           <Card key={stat.label} className="border-border shadow-card card-hover">

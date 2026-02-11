@@ -1,12 +1,11 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import {
   ArrowLeft,
-  Edit,
+  Save,
   Send,
-  MoreHorizontal,
   FileText,
   FileIcon,
   Download,
@@ -19,21 +18,33 @@ import {
   CheckCircle2,
   Lock,
   ArrowRightLeft,
-  Smile,
-  Meh,
-  Frown,
+  Upload,
+  X,
+  Plus,
+  MessageSquare,
+  Edit,
+  XCircle,
+  Bold,
+  Italic,
+  Underline,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Progress } from "@/components/ui/progress"
+import { Semaphore } from "@/components/semaphore"
 import {
   Dialog,
   DialogContent,
@@ -41,11 +52,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import { Progress } from "@/components/ui/progress"
-import { Semaphore } from "@/components/semaphore"
-import { mockCases, mockComments, getPhaseFromStatus } from "@/lib/mock-data"
+import { mockCases, mockComments, getPhaseFromStatus, getSemaphoreFromDeadline } from "@/lib/mock-data"
+import type { CaseType, CaseArea, ProcesalDeadline } from "@/lib/mock-data"
 
 const PHASE_LABELS = ["Evaluacion", "Revision", "Aprobacion", "Seguimiento"]
 
@@ -55,9 +64,48 @@ const tabTriggerClass =
 export default function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const caseData = mockCases.find((c) => c.id === id) || mockCases[0]
+
+  // Current phase (1-4)
+  const currentPhase = getPhaseFromStatus(caseData.status)
+  const currentStepIndex = currentPhase - 1
+
+  // ── Editable state ──────────────────────────────────────────────────
+  const [description, setDescription] = useState(caseData.description)
+  const [interviewNotes, setInterviewNotes] = useState(caseData.interviewNotes || "")
+  const [clientName, setClientName] = useState(caseData.clientName)
+  const [clientDoc, setClientDoc] = useState(caseData.clientDoc)
+  const [clientDocType, setClientDocType] = useState(caseData.clientDocType)
+  const [clientPhone, setClientPhone] = useState(caseData.clientPhone)
+  const [clientEmail, setClientEmail] = useState(caseData.clientEmail)
+  const [clientAddress, setClientAddress] = useState(caseData.clientAddress)
+  const [caseType, setCaseType] = useState<CaseType>(caseData.type)
+  const [caseArea, setCaseArea] = useState<CaseArea>(caseData.area)
+  const [hoursSpent, setHoursSpent] = useState(String(caseData.hoursSpent))
+  const [deadlines, setDeadlines] = useState<ProcesalDeadline[]>([...caseData.procesalDeadlines])
+
+  // Reserved data
+  const [hasMinor, setHasMinor] = useState(caseData.reservedData?.hasMinor || false)
+  const [hasGeneticData, setHasGeneticData] = useState(caseData.reservedData?.hasGeneticData || false)
+  const [hasPensionData, setHasPensionData] = useState(caseData.reservedData?.hasPensionData || false)
+  const [reservedNotes, setReservedNotes] = useState(caseData.reservedData?.notes || "")
+
+  // Concepto Juridico
+  const [conceptoJuridico, setConceptoJuridico] = useState("")
+
+  // Refs for rich text editors
+  const interviewEditorRef = useRef<HTMLDivElement>(null)
+  const conceptoEditorRef = useRef<HTMLDivElement>(null)
+
+  // Edit mode
+  const [isEditing, setIsEditing] = useState(false)
+
+  // Chat
   const [newComment, setNewComment] = useState("")
-  const [showSurveyDialog, setShowSurveyDialog] = useState(false)
-  const [surveyRating, setSurveyRating] = useState<string | null>(caseData.survey?.rating || null)
+  const [chatMessages, setChatMessages] = useState(mockComments)
+
+  // Feedback
+  const [showSaveToast, setShowSaveToast] = useState(false)
+  const [showSendDialog, setShowSendDialog] = useState(false)
 
   const statusColor: Record<string, string> = {
     Evaluacion: "bg-muted text-muted-foreground",
@@ -68,9 +116,106 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     Cerrado: "bg-muted text-muted-foreground",
   }
 
-  // Current phase (1-4)
-  const currentPhase = getPhaseFromStatus(caseData.status)
-  const currentStepIndex = currentPhase - 1
+  // Rich text formatting helper
+  const execFormat = useCallback((command: string) => {
+    document.execCommand(command, false)
+  }, [])
+
+  // Toolbar component for rich text editors
+  function RichTextToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement | null> }) {
+    const handleFormat = (command: string) => {
+      // Ensure focus is in the editor before applying format
+      if (editorRef.current) {
+        editorRef.current.focus()
+      }
+      execFormat(command)
+    }
+    return (
+      <div className="flex items-center gap-1 rounded-t-lg border border-b-0 border-border bg-muted/50 px-2 py-1.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 hover:bg-background"
+          onClick={() => handleFormat("bold")}
+          aria-label="Negrita"
+          title="Negrita"
+        >
+          <Bold size={16} />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 hover:bg-background"
+          onClick={() => handleFormat("italic")}
+          aria-label="Cursiva"
+          title="Cursiva"
+        >
+          <Italic size={16} />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 hover:bg-background"
+          onClick={() => handleFormat("underline")}
+          aria-label="Subrayado"
+          title="Subrayado"
+        >
+          <Underline size={16} />
+        </Button>
+      </div>
+    )
+  }
+
+  // Check if case was returned by professor (has "Devolvio" in audit)
+  const lastReturnEntry = [...caseData.auditLog]
+    .reverse()
+    .find((e) => e.action.toLowerCase().includes("devolvio") || e.action.toLowerCase().includes("devolver"))
+
+  // Can student edit? Only in phases 1 and 2 (Evaluacion, Sustanciacion, Revision del profesor)
+  const canStartEditing = currentPhase <= 2
+  const canEdit = canStartEditing && isEditing
+
+  function addDeadline() {
+    setDeadlines((prev) => [
+      ...prev,
+      { id: `new-${Date.now()}`, name: "", dueDate: "", completed: false },
+    ])
+  }
+
+  function removeDeadline(index: number) {
+    setDeadlines((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function handleSave() {
+    setIsEditing(false)
+    setShowSaveToast(true)
+    setTimeout(() => setShowSaveToast(false), 3000)
+  }
+
+  function handleSendToReview() {
+    setShowSendDialog(false)
+    setShowSaveToast(true)
+    setTimeout(() => setShowSaveToast(false), 3000)
+  }
+
+  function handleSendChat() {
+    if (!newComment.trim()) return
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        user: "Maria Gonzalez",
+        role: "Estudiante",
+        avatar: "MG",
+        message: newComment,
+        timestamp: "Ahora",
+      },
+    ])
+    setNewComment("")
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,8 +233,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-mono text-2xl font-bold text-foreground">{caseData.radicado}</h1>
-            <Badge className={statusColor[caseData.status] || ""}>{caseData.status}</Badge>
-            {/* RF-20: High risk alert */}
+            <Badge className={statusColor[caseData.status] || ""}>Fase {currentPhase} - {PHASE_LABELS[currentStepIndex]}</Badge>
             {caseData.highRiskAlert && (
               <Badge className="bg-destructive/15 text-destructive">
                 <AlertTriangle size={12} className="mr-1" aria-hidden="true" />
@@ -98,45 +242,79 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
             )}
           </div>
           <div className="flex items-center gap-3">
-            <Semaphore color={caseData.semaphore} size="lg" showLabel />
-            {caseData.semaphore === "red" && (
-              <span className="text-sm font-medium text-destructive">
-                Vence el{" "}
-                {new Date(caseData.deadline).toLocaleDateString("es-CO", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}{" "}
-                - URGENTE
-              </span>
-            )}
+            <Semaphore color={getSemaphoreFromDeadline(caseData.deadline)} size="lg" showLabel />
+            <span className="text-sm text-muted-foreground">
+              {new Date(caseData.deadline).toLocaleDateString("es-CO", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="flex items-center gap-2 bg-transparent">
-            <Edit size={14} aria-hidden="true" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
-          <Button size="sm" className="flex items-center gap-2">
-            <Send size={14} aria-hidden="true" />
-            <span className="hidden sm:inline">Enviar a revision</span>
-            <span className="sm:hidden">Enviar</span>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Mas opciones">
-                <MoreHorizontal size={16} />
+          {canStartEditing && !isEditing && (
+            <Button variant="outline" size="sm" className="flex items-center gap-2 bg-transparent" onClick={() => setIsEditing(true)}>
+              <Edit size={14} aria-hidden="true" />
+              <span className="hidden sm:inline">Editar caso</span>
+              <span className="sm:hidden">Editar</span>
+            </Button>
+          )}
+          {canEdit && (
+            <>
+              <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground" onClick={() => setIsEditing(false)}>
+                <XCircle size={14} aria-hidden="true" />
+                Cancelar
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Duplicar caso</DropdownMenuItem>
-              <DropdownMenuItem>Exportar PDF</DropdownMenuItem>
-              <DropdownMenuItem>Imprimir</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Archivar caso</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <Button variant="outline" size="sm" className="flex items-center gap-2 bg-transparent" onClick={handleSave}>
+                <Save size={14} aria-hidden="true" />
+                <span className="hidden sm:inline">Guardar cambios</span>
+                <span className="sm:hidden">Guardar</span>
+              </Button>
+              <Button size="sm" className="flex items-center gap-2" onClick={() => setShowSendDialog(true)}>
+                <Send size={14} aria-hidden="true" />
+                <span className="hidden sm:inline">Enviar a revision</span>
+                <span className="sm:hidden">Enviar</span>
+              </Button>
+            </>
+          )}
+          {!canStartEditing && (
+            <Badge variant="secondary" className="bg-success/10 text-success">
+              <Lock size={12} className="mr-1" />
+              Caso en fase {currentPhase} - Solo lectura
+            </Badge>
+          )}
         </div>
       </div>
+
+      {/* Professor Observations Banner */}
+      {lastReturnEntry && canStartEditing && (
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-lg border border-secondary/30 bg-secondary/10 p-4"
+        >
+          <div className="flex items-center gap-2">
+            <MessageSquare size={18} className="shrink-0 text-secondary" aria-hidden="true" />
+            <span className="font-semibold text-secondary">Observaciones del Profesor</span>
+            <span className="text-xs text-muted-foreground">({lastReturnEntry.date})</span>
+          </div>
+          <p className="text-sm text-foreground">
+            <span className="font-medium">{lastReturnEntry.user}:</span>{" "}
+            {lastReturnEntry.detail || lastReturnEntry.action}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Corrija las observaciones y envie nuevamente a revision.
+          </p>
+        </div>
+      )}
+
+      {/* Save Toast */}
+      {showSaveToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-3 shadow-lg">
+          <CheckCircle2 size={18} className="text-success" />
+          <span className="text-sm font-medium text-success">Cambios guardados correctamente</span>
+        </div>
+      )}
 
       {/* Process Flow - 4 Phases */}
       <Card className="border-border">
@@ -180,6 +358,9 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           <TabsTrigger value="resumen" className={tabTriggerClass}>
             Resumen
           </TabsTrigger>
+          <TabsTrigger value="solicitante" className={tabTriggerClass}>
+            Solicitante
+          </TabsTrigger>
           <TabsTrigger value="documentos" className={tabTriggerClass}>
             Documentos
           </TabsTrigger>
@@ -196,255 +377,334 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           )}
         </TabsList>
 
-        {/* Tab: Resumen */}
+        {/* Tab: Resumen (editable) */}
         <TabsContent value="resumen" className="mt-6">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="flex flex-col gap-6 lg:col-span-2">
-              {/* Description */}
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="text-base text-foreground">
-                    Descripcion del conflicto
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="leading-relaxed text-foreground">{caseData.description}</p>
-                </CardContent>
-              </Card>
+          <div className="flex flex-col gap-6">
+            {/* Case Type & Area */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="caseType" className="text-sm font-medium text-foreground">Tipo de actuación</Label>
+                {canEdit ? (
+                  <Select value={caseType} onValueChange={(v) => setCaseType(v as CaseType)}>
+                    <SelectTrigger id="caseType" className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Tutela">Tutela</SelectItem>
+                      <SelectItem value="Demanda">Demanda</SelectItem>
+                      <SelectItem value="Derecho de peticion">Derecho de peticion</SelectItem>
+                      <SelectItem value="Consulta">Consulta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-foreground rounded-lg border border-border bg-muted/30 px-3 py-2">{caseType}</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="caseArea" className="text-sm font-medium text-foreground">Area juridica</Label>
+                {canEdit ? (
+                  <Select value={caseArea} onValueChange={(v) => setCaseArea(v as CaseArea)}>
+                    <SelectTrigger id="caseArea" className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Penal">Penal</SelectItem>
+                      <SelectItem value="Civil">Civil</SelectItem>
+                      <SelectItem value="Laboral">Laboral</SelectItem>
+                      <SelectItem value="Familia">Familia</SelectItem>
+                      <SelectItem value="Derecho Publico">Derecho Publico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-foreground rounded-lg border border-border bg-muted/30 px-3 py-2">{caseArea}</p>
+                )}
+              </div>
+            </div>
 
-              {/* RF-22: Interview notes */}
-              {caseData.interviewNotes && (
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="text-base text-foreground">
-                      Notas de entrevista inicial
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div
-                      className="prose prose-sm max-w-none text-foreground"
-                      dangerouslySetInnerHTML={{ __html: caseData.interviewNotes }}
-                    />
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* RF-07: Procesal Deadlines */}
-              {caseData.procesalDeadlines.length > 0 && (
-                <Card className="border-border">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base text-foreground">
-                      <Clock size={18} aria-hidden="true" />
-                      Terminos Procesales
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col gap-3">
-                      {caseData.procesalDeadlines.map((dl) => (
-                        <div
-                          key={dl.id}
-                          className={`flex items-center justify-between rounded-lg border p-3 ${
-                            dl.completed
-                              ? "border-success/30 bg-success/5"
-                              : "border-border"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            {dl.completed ? (
-                              <CheckCircle2 size={18} className="text-success" />
-                            ) : (
-                              <Clock size={18} className="text-muted-foreground" />
-                            )}
-                            <span className={`text-sm ${dl.completed ? "line-through text-muted-foreground" : "text-foreground font-medium"}`}>
-                              {dl.name}
-                            </span>
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            {new Date(dl.dueDate).toLocaleDateString("es-CO", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* RF-27: Reserved Data (only visible to assigned student/professor) */}
-              {caseData.reservedData && (
-                <Card className="border-2 border-destructive/30">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base text-foreground">
-                      <Shield size={18} className="text-destructive" aria-hidden="true" />
-                      Datos de Reserva Legal
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col gap-3 text-sm">
-                      <div className="flex flex-wrap gap-2">
-                        {caseData.reservedData.hasMinor && (
-                          <Badge className="bg-destructive/10 text-destructive">Menor de edad</Badge>
-                        )}
-                        {caseData.reservedData.hasGeneticData && (
-                          <Badge className="bg-destructive/10 text-destructive">Datos geneticos</Badge>
-                        )}
-                        {caseData.reservedData.hasPensionData && (
-                          <Badge className="bg-destructive/10 text-destructive">Datos pensionales</Badge>
-                        )}
-                      </div>
-                      <p className="text-foreground">{caseData.reservedData.notes}</p>
-                      <p className="text-xs text-destructive">
-                        Solo visible para: {caseData.assignedStudent} y {caseData.assignedProfessor}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* Description */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="description" className="text-sm font-medium text-foreground">Descripcion del conflicto</Label>
+              {canEdit ? (
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="min-h-[120px] resize-y"
+                  placeholder="Describa el conflicto juridico..."
+                />
+              ) : (
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="text-sm leading-relaxed text-foreground">{description}</p>
+                </div>
               )}
             </div>
 
-            {/* Client Info Sidebar */}
-            <div className="flex flex-col gap-6">
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base text-foreground">
-                    <User size={18} aria-hidden="true" />
-                    Datos del solicitante
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <dl className="flex flex-col gap-3 text-sm">
-                    <div>
-                      <dt className="text-muted-foreground">Nombre</dt>
-                      <dd className="font-medium text-foreground">{caseData.clientName}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Documento</dt>
-                      <dd className="font-mono text-foreground">
-                        {caseData.clientDocType} {caseData.clientDoc}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Telefono</dt>
-                      <dd className="text-foreground">{caseData.clientPhone}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Correo</dt>
-                      <dd className="text-foreground">{caseData.clientEmail}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Direccion</dt>
-                      <dd className="text-foreground">{caseData.clientAddress}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Tipo de caso</dt>
-                      <dd className="text-foreground">
-                        {caseData.type} - {caseData.area}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Profesor asignado</dt>
-                      <dd className="text-foreground">{caseData.assignedProfessor}</dd>
-                    </div>
-                  </dl>
-                </CardContent>
-              </Card>
-
-              {/* RF-18: Satisfaction Survey */}
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="text-base text-foreground">
-                    Encuesta de Satisfaccion
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {caseData.survey ? (
-                    <div className="flex flex-col items-center gap-2 text-center">
-                      {caseData.survey.rating === "satisfecho" && (
-                        <Smile size={40} className="text-success" />
-                      )}
-                      {caseData.survey.rating === "neutral" && (
-                        <Meh size={40} className="text-accent" />
-                      )}
-                      {caseData.survey.rating === "insatisfecho" && (
-                        <Frown size={40} className="text-destructive" />
-                      )}
-                      <span className="text-sm font-medium capitalize text-foreground">
-                        {caseData.survey.rating}
-                      </span>
-                      {caseData.survey.comment && (
-                        <p className="text-xs text-muted-foreground">
-                          {`"${caseData.survey.comment}"`}
-                        </p>
-                      )}
-                    </div>
+            {/* Interview Notes */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="interviewNotes" className="text-sm font-medium text-foreground">Notas de entrevista inicial</Label>
+              {canEdit ? (
+                <div>
+                  <RichTextToolbar editorRef={interviewEditorRef} />
+                  <div
+                    ref={interviewEditorRef}
+                    id="interviewNotes"
+                    contentEditable
+                    spellCheck={true}
+                    className="min-h-[120px] rounded-b-lg border border-border bg-background p-3 font-serif text-sm leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-primary/20"
+                    dangerouslySetInnerHTML={{ __html: interviewNotes }}
+                    onInput={(e) => setInterviewNotes((e.target as HTMLDivElement).innerHTML)}
+                    role="textbox"
+                    aria-label="Notas de entrevista inicial"
+                    aria-multiline="true"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  {interviewNotes ? (
+                    <div className="prose prose-sm max-w-none font-serif text-foreground" dangerouslySetInnerHTML={{ __html: interviewNotes }} />
                   ) : (
-                    <div className="flex flex-col items-center gap-3 text-center">
-                      <p className="text-sm text-muted-foreground">
-                        Aun no se ha calificado la atencion.
-                      </p>
-                      <Dialog open={showSurveyDialog} onOpenChange={setShowSurveyDialog}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" className="bg-transparent">
-                            Calificar atencion
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-sm">
-                          <DialogHeader>
-                            <DialogTitle>Como fue la atencion?</DialogTitle>
-                            <DialogDescription>
-                              Seleccione una opcion para calificar el servicio recibido.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="flex items-center justify-center gap-6 py-4">
-                            <button
-                              type="button"
-                              className={`flex flex-col items-center gap-1 rounded-lg p-3 transition-colors ${surveyRating === "satisfecho" ? "bg-success/15" : "hover:bg-muted"}`}
-                              onClick={() => setSurveyRating("satisfecho")}
-                              aria-label="Satisfecho"
-                            >
-                              <Smile size={40} className={surveyRating === "satisfecho" ? "text-success" : "text-muted-foreground"} />
-                              <span className="text-xs">Satisfecho</span>
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex flex-col items-center gap-1 rounded-lg p-3 transition-colors ${surveyRating === "neutral" ? "bg-accent/15" : "hover:bg-muted"}`}
-                              onClick={() => setSurveyRating("neutral")}
-                              aria-label="Neutral"
-                            >
-                              <Meh size={40} className={surveyRating === "neutral" ? "text-accent" : "text-muted-foreground"} />
-                              <span className="text-xs">Neutral</span>
-                            </button>
-                            <button
-                              type="button"
-                              className={`flex flex-col items-center gap-1 rounded-lg p-3 transition-colors ${surveyRating === "insatisfecho" ? "bg-destructive/15" : "hover:bg-muted"}`}
-                              onClick={() => setSurveyRating("insatisfecho")}
-                              aria-label="Insatisfecho"
-                            >
-                              <Frown size={40} className={surveyRating === "insatisfecho" ? "text-destructive" : "text-muted-foreground"} />
-                              <span className="text-xs">Insatisfecho</span>
-                            </button>
-                          </div>
-                          <DialogFooter>
-                            <Button onClick={() => setShowSurveyDialog(false)} disabled={!surveyRating}>
-                              Enviar calificacion
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
+                    <p className="text-sm text-muted-foreground">Sin notas de entrevista</p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              )}
+            </div>
+
+            {/* Concepto o Actuacion Juridica */}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="conceptoJuridico" className="text-sm font-medium text-foreground">Concepto o Actuacion Juridica</Label>
+              <p className="text-xs text-muted-foreground">Documento de actuacion juridica con terminologia especializada</p>
+              {canEdit ? (
+                <div>
+                  <RichTextToolbar editorRef={conceptoEditorRef} />
+                  <div
+                    ref={conceptoEditorRef}
+                    id="conceptoJuridico"
+                    contentEditable
+                    spellCheck={true}
+                    className="min-h-[120px] rounded-b-lg border border-border bg-background p-3 font-serif text-sm leading-relaxed text-foreground outline-none focus:ring-2 focus:ring-primary/20"
+                    dangerouslySetInnerHTML={{ __html: conceptoJuridico }}
+                    onInput={(e) => setConceptoJuridico((e.target as HTMLDivElement).innerHTML)}
+                    role="textbox"
+                    aria-label="Concepto o Actuacion Juridica"
+                    aria-multiline="true"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  {conceptoJuridico ? (
+                    <div className="prose prose-sm max-w-none font-serif text-foreground" dangerouslySetInnerHTML={{ __html: conceptoJuridico }} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Sin concepto juridico</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Terminos Procesales - Automaticos */}
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                  <Clock size={18} aria-hidden="true" />
+                  Terminos Procesales
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {deadlines.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {deadlines.map((dl) => (
+                      <div
+                        key={dl.id}
+                        className={`flex items-center justify-between rounded-lg border p-3 ${
+                          dl.completed ? "border-success/30 bg-success/5" : "border-border"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          {dl.completed ? (
+                            <CheckCircle2 size={18} className="text-success shrink-0" />
+                          ) : (
+                            <Clock size={18} className="text-muted-foreground shrink-0" />
+                          )}
+                          <span className={`text-sm ${dl.completed ? "line-through text-muted-foreground" : "text-foreground font-medium"}`}>
+                            {dl.name}
+                          </span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(dl.dueDate).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-border bg-muted/30 p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Los terminos procesales se calculan automaticamente segun la configuracion del sistema.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Reserved Data */}
+            <Card className="border-2 border-destructive/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                  <Shield size={18} className="text-destructive" aria-hidden="true" />
+                  Datos de Reserva Legal
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  {canEdit ? (
+                    <>
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                          <Checkbox id="hasMinor" checked={hasMinor} onCheckedChange={(c) => setHasMinor(c === true)} />
+                          <Label htmlFor="hasMinor" className="text-sm font-normal cursor-pointer">Menor de edad</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox id="hasGenetic" checked={hasGeneticData} onCheckedChange={(c) => setHasGeneticData(c === true)} />
+                          <Label htmlFor="hasGenetic" className="text-sm font-normal cursor-pointer">Datos geneticos</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox id="hasPension" checked={hasPensionData} onCheckedChange={(c) => setHasPensionData(c === true)} />
+                          <Label htmlFor="hasPension" className="text-sm font-normal cursor-pointer">Datos pensionales</Label>
+                        </div>
+                      </div>
+                      <Textarea
+                        value={reservedNotes}
+                        onChange={(e) => setReservedNotes(e.target.value)}
+                        placeholder="Notas de reserva legal..."
+                        className="min-h-[60px]"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap gap-2">
+                        {hasMinor && <Badge className="bg-destructive/10 text-destructive">Menor de edad</Badge>}
+                        {hasGeneticData && <Badge className="bg-destructive/10 text-destructive">Datos geneticos</Badge>}
+                        {hasPensionData && <Badge className="bg-destructive/10 text-destructive">Datos pensionales</Badge>}
+                        {!hasMinor && !hasGeneticData && !hasPensionData && (
+                          <span className="text-sm text-muted-foreground">Sin datos de reserva</span>
+                        )}
+                      </div>
+                      {reservedNotes && <p className="text-sm text-foreground">{reservedNotes}</p>}
+                    </>
+                  )}
+                  <p className="text-xs text-destructive">
+                    Solo visible para: {caseData.assignedStudent} y {caseData.assignedProfessor}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Info */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock size={14} />
+              Profesor asignado: <span className="font-medium text-foreground">{caseData.assignedProfessor}</span>
+              &nbsp;|&nbsp; Creado: {caseData.createdAt}
             </div>
           </div>
         </TabsContent>
 
-        {/* Tab: Documentos (RF-03, RF-04, RF-16) */}
+        {/* Tab: Solicitante (editable) */}
+        <TabsContent value="solicitante" className="mt-6">
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                <User size={18} aria-hidden="true" />
+                Datos del Solicitante
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {canEdit ? (
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="clientName">Nombre completo</Label>
+                      <Input id="clientName" value={clientName} onChange={(e) => setClientName(e.target.value)} className="h-10" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="clientDocType">Tipo de documento</Label>
+                      <Select value={clientDocType} onValueChange={setClientDocType}>
+                        <SelectTrigger id="clientDocType" className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CC">Cedula de Ciudadania</SelectItem>
+                          <SelectItem value="CE">Cedula de Extranjeria</SelectItem>
+                          <SelectItem value="Pasaporte">Pasaporte</SelectItem>
+                          <SelectItem value="NIT">NIT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="clientDoc">Numero de documento</Label>
+                      <Input id="clientDoc" value={clientDoc} onChange={(e) => setClientDoc(e.target.value)} className="h-10 font-mono" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="clientPhone">Telefono</Label>
+                      <Input id="clientPhone" type="tel" value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} className="h-10" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="clientEmailInput">Correo electronico</Label>
+                      <Input id="clientEmailInput" type="email" value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} className="h-10" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="clientAddress">Direccion</Label>
+                      <Input id="clientAddress" value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} className="h-10" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <dl className="flex flex-col gap-3 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">Nombre</dt>
+                    <dd className="font-medium text-foreground">{clientName}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Documento</dt>
+                    <dd className="font-mono text-foreground">{clientDocType} {clientDoc}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Telefono</dt>
+                    <dd className="text-foreground">{clientPhone}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Correo</dt>
+                    <dd className="text-foreground">{clientEmail}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Direccion</dt>
+                    <dd className="text-foreground">{clientAddress}</dd>
+                  </div>
+                </dl>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab: Documentos */}
         <TabsContent value="documentos" className="mt-6">
           <div className="flex flex-col gap-4">
+            {/* Upload zone (only if editable) */}
+            {canEdit && (
+              <div
+                className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 text-center transition-colors hover:border-primary/50"
+                onDragOver={(e) => e.preventDefault()}
+                role="button"
+                tabIndex={0}
+                aria-label="Area de carga de archivos"
+              >
+                <Upload size={28} className="text-muted-foreground" aria-hidden="true" />
+                <p className="text-sm text-foreground">Arrastra archivos aqui o haz clic para seleccionar</p>
+                <p className="text-xs text-muted-foreground">Formatos: Word (DOC, DOCX), Excel (XLS, XLSX), PDF, TXT (Max 100 MB por archivo)</p>
+              </div>
+            )}
+
             {caseData.documents.map((doc) => (
               <Card key={doc.id} className="border-border">
                 <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
@@ -471,10 +731,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                       </div>
                       <span className="text-xs text-muted-foreground truncate">
                         {doc.size} | {doc.uploadedBy} |{" "}
-                        {new Date(doc.uploadDate).toLocaleDateString("es-CO", {
-                          day: "numeric",
-                          month: "short",
-                        })}
+                        {new Date(doc.uploadDate).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
                       </span>
                     </div>
                   </div>
@@ -485,15 +742,10 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                     <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Descargar ${doc.name}`}>
                       <Download size={16} />
                     </Button>
-                    {doc.type === "docx" && !doc.isApproved && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-1 text-xs bg-transparent"
-                        aria-label={`Editar ${doc.name}`}
-                      >
-                        <Edit size={14} />
-                        Editar
+                    {canEdit && doc.type === "docx" && !doc.isApproved && (
+                      <Button variant="outline" size="sm" className="flex items-center gap-1 text-xs bg-transparent">
+                        <FileIcon size={14} />
+                        Reemplazar
                       </Button>
                     )}
                   </div>
@@ -503,7 +755,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </TabsContent>
 
-        {/* Tab: RF-17 Auditoria */}
+        {/* Tab: Auditoria */}
         <TabsContent value="auditoria" className="mt-6">
           <Card className="border-border">
             <CardHeader>
@@ -517,10 +769,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                 {caseData.auditLog.map((entry, i) => (
                   <div key={entry.id} className="relative flex gap-4 pb-8 last:pb-0">
                     {i < caseData.auditLog.length - 1 && (
-                      <div
-                        className="absolute left-[15px] top-8 h-full w-px bg-border"
-                        aria-hidden="true"
-                      />
+                      <div className="absolute left-[15px] top-8 h-full w-px bg-border" aria-hidden="true" />
                     )}
                     <div
                       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
@@ -568,7 +817,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                 </p>
               </div>
               <div className="flex flex-col gap-4">
-                {mockComments.map((comment) => {
+                {chatMessages.map((comment) => {
                   const isStudent = comment.role === "Estudiante"
                   return (
                     <div
@@ -619,18 +868,18 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
               <div className="flex gap-3 border-t border-border pt-4">
                 <div className="flex flex-1 flex-col gap-2">
                   <Textarea
-                    placeholder="Escribe un comentario..."
+                    placeholder="Escribe un mensaje..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     className="min-h-[80px] resize-none"
-                    aria-label="Escribir nuevo comentario"
+                    aria-label="Escribir nuevo mensaje"
                   />
                   <div className="flex items-center justify-between">
                     <Button variant="ghost" size="sm" className="flex items-center gap-2 text-muted-foreground">
                       <Paperclip size={16} aria-hidden="true" />
                       Adjuntar archivo
                     </Button>
-                    <Button size="sm" className="flex items-center gap-2">
+                    <Button size="sm" className="flex items-center gap-2" onClick={handleSendChat}>
                       <Send size={14} aria-hidden="true" />
                       Enviar
                     </Button>
@@ -641,7 +890,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </Card>
         </TabsContent>
 
-        {/* Tab: RF-12 Sustitucion */}
+        {/* Tab: Sustitucion */}
         {caseData.substitutionHistory.length > 0 && (
           <TabsContent value="sustitucion" className="mt-6">
             <Card className="border-border">
@@ -667,9 +916,6 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                         <span className="font-medium text-foreground">{sub.to}</span>
                       </div>
                       <p className="text-sm text-muted-foreground">Motivo: {sub.reason}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Toda la trazabilidad del caso fue transferida al nuevo estudiante.
-                      </p>
                     </div>
                   ))}
                 </div>
@@ -678,6 +924,27 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Send to Review Dialog */}
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar a Revision</DialogTitle>
+            <DialogDescription>
+              El caso <span className="font-mono font-semibold">{caseData.radicado}</span> sera
+              enviado al profesor <span className="font-semibold">{caseData.assignedProfessor}</span> para
+              su revision. Asegurese de haber guardado todos los cambios.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowSendDialog(false)}>Cancelar</Button>
+            <Button onClick={handleSendToReview}>
+              <Send size={14} className="mr-2" />
+              Confirmar envio
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

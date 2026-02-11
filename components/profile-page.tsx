@@ -1,14 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { User, Mail, Shield, BookOpen, GraduationCap, Lock, Eye, EyeOff } from "lucide-react"
+import { User, Mail, Shield, BookOpen, GraduationCap, Lock, Eye, EyeOff, Clock, Calendar, Timer } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
+import { mockUsers } from "@/lib/mock-data"
 
 const roleBadgeColors: Record<string, string> = {
   estudiante: "bg-blue-100 text-blue-800 border-blue-200",
@@ -112,6 +114,127 @@ export function ProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Practice Hours Tracking - Students only */}
+      {user.role === "estudiante" && (() => {
+        const mockUser = mockUsers.find((u) => u.name === user.name) || mockUsers.find((u) => u.role === "estudiante")
+        const totalPracticeHours = mockUser?.totalPracticeHours || 0
+        const practiceStartDate = mockUser?.practiceStartDate
+        const startDate = practiceStartDate ? new Date(practiceStartDate) : new Date()
+        const now = new Date()
+        const weeksElapsed = Math.max(1, Math.ceil((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)))
+        const monthsElapsed = Math.max(1, Math.ceil((now.getTime() - startDate.getTime()) / (30.44 * 24 * 60 * 60 * 1000)))
+
+        // Limits
+        const MAX_HOURS_WEEK = 8
+        const MAX_HOURS_MONTH = 32
+        const PRACTICE_DURATION_MONTHS = 6
+        const TOTAL_MAX_HOURS = MAX_HOURS_MONTH * PRACTICE_DURATION_MONTHS // 192h total
+
+        const avgHoursPerWeek = +(totalPracticeHours / weeksElapsed).toFixed(1)
+        const avgHoursPerMonth = +(totalPracticeHours / monthsElapsed).toFixed(1)
+        const progressPercent = Math.min(100, (monthsElapsed / PRACTICE_DURATION_MONTHS) * 100)
+        const hoursProgressPercent = Math.min(100, (totalPracticeHours / TOTAL_MAX_HOURS) * 100)
+
+        const endDate = new Date(startDate)
+        endDate.setMonth(endDate.getMonth() + PRACTICE_DURATION_MONTHS)
+        const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)))
+
+        const isSuspended = mockUser?.practiceSuspension?.isActive
+
+        return (
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Timer size={20} aria-hidden="true" />
+                Control de Horas de Practica
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-5">
+                {isSuspended && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                    <p className="text-sm font-medium text-destructive">Practica suspendida temporalmente</p>
+                    <p className="text-xs text-muted-foreground mt-1">La suspension fue aplicada por el administrador. Contacte a la coordinacion para mas informacion.</p>
+                  </div>
+                )}
+
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center">
+                    <Clock size={18} className="text-primary" aria-hidden="true" />
+                    <span className="text-xl font-bold text-foreground">{totalPracticeHours}h</span>
+                    <span className="text-[10px] text-muted-foreground">Total acumulado</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center">
+                    <Calendar size={18} className="text-secondary" aria-hidden="true" />
+                    <span className="text-xl font-bold text-foreground">{avgHoursPerWeek}h</span>
+                    <span className="text-[10px] text-muted-foreground">Promedio/semana</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center">
+                    <Calendar size={18} className="text-success" aria-hidden="true" />
+                    <span className="text-xl font-bold text-foreground">{avgHoursPerMonth}h</span>
+                    <span className="text-[10px] text-muted-foreground">Promedio/mes</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center">
+                    <Timer size={18} className="text-accent-foreground" aria-hidden="true" />
+                    <span className="text-xl font-bold text-foreground">{daysRemaining}</span>
+                    <span className="text-[10px] text-muted-foreground">Dias restantes</span>
+                  </div>
+                </div>
+
+                {/* Progress bars */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Progreso de practica ({monthsElapsed} de {PRACTICE_DURATION_MONTHS} meses)</span>
+                      <span className="font-medium text-foreground">{progressPercent.toFixed(0)}%</span>
+                    </div>
+                    <Progress value={progressPercent} className="h-2" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Horas acumuladas ({totalPracticeHours}h de {TOTAL_MAX_HOURS}h estimadas)</span>
+                      <span className="font-medium text-foreground">{hoursProgressPercent.toFixed(0)}%</span>
+                    </div>
+                    <Progress value={hoursProgressPercent} className="h-2" />
+                  </div>
+                </div>
+
+                {/* Rules */}
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="text-xs font-medium text-foreground mb-2">Reglas de horas de practica:</p>
+                  <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                      Maximo <strong className="text-foreground">{MAX_HOURS_WEEK} horas</strong> por semana
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-secondary shrink-0" />
+                      Maximo <strong className="text-foreground">{MAX_HOURS_MONTH} horas</strong> por mes
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success shrink-0" />
+                      Duracion total de practicas: <strong className="text-foreground">{PRACTICE_DURATION_MONTHS} meses</strong>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground shrink-0" />
+                      El conteo de horas lo realiza el sistema automaticamente segun los terminos procesales
+                    </li>
+                  </ul>
+                </div>
+
+                {practiceStartDate && (
+                  <p className="text-xs text-muted-foreground">
+                    Inicio de practica: {new Date(practiceStartDate).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
+                    &nbsp;|&nbsp;Fin estimado: {endDate.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Password Change */}
       <Card className="border-border">

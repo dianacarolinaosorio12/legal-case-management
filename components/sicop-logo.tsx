@@ -18,7 +18,7 @@ export function SicopLogo({ size = "default" }: { size?: "small" | "default" | "
           SICOP
         </span>
         <span className={`${s.sub} text-muted-foreground leading-none`}>
-          Sistema de Control de Procesos
+          Sistema de Control de Prácticas
         </span>
       </div>
     </div>

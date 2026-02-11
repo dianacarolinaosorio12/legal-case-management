@@ -32,28 +32,35 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Semaphore } from "@/components/semaphore"
-import { mockCases } from "@/lib/mock-data"
+import { mockCases, getSemaphoreFromDeadline, getSemaphoreLabel, getPhaseFromStatus, TODAY } from "@/lib/mock-data"
 
-const statusBadge: Record<string, string> = {
-  Evaluacion: "bg-muted text-muted-foreground",
-  Sustanciacion: "bg-accent/15 text-accent-foreground",
-  "Revision del profesor": "bg-secondary/15 text-secondary",
-  Aprobado: "bg-success/15 text-success",
-  Seguimiento: "bg-primary/15 text-primary",
-  Cerrado: "bg-muted text-muted-foreground",
+const PHASE_LABELS: Record<number, string> = {
+  1: "Evaluacion",
+  2: "Revision",
+  3: "Aprobacion",
+  4: "Seguimiento",
+  5: "Cerrado",
+}
+
+const phaseBadge: Record<number, string> = {
+  1: "bg-muted text-muted-foreground",
+  2: "bg-secondary/15 text-secondary",
+  3: "bg-success/15 text-success",
+  4: "bg-primary/15 text-primary",
+  5: "bg-muted text-muted-foreground",
 }
 
 export default function MisCasosPage() {
   const [search, setSearch] = useState("")
-  const [filterStatus, setFilterStatus] = useState("all")
+  const [filterPhase, setFilterPhase] = useState("all")
   const [filterSemaphore, setFilterSemaphore] = useState("all")
   const [filterArea, setFilterArea] = useState("all")
 
   // KPI stats
   const activeCases = mockCases.filter((c) => c.status !== "Cerrado").length
+  const closedCases = mockCases.filter((c) => c.status === "Cerrado").length
   const inReview = mockCases.filter((c) => c.status === "Revision del profesor").length
-  const redAlerts = mockCases.filter((c) => c.semaphore === "red")
-  const totalHours = mockCases.reduce((sum, c) => sum + c.hoursSpent, 0)
+  const redAlerts = mockCases.filter((c) => getSemaphoreFromDeadline(c.deadline) === "red")
 
   const stats = [
     {
@@ -81,12 +88,12 @@ export default function MisCasosPage() {
       borderColor: "border-l-destructive",
     },
     {
-      title: "Horas Totales",
-      value: `${totalHours}h`,
-      icon: Clock,
-      color: "text-success",
-      bg: "bg-success/10",
-      borderColor: "border-l-success",
+      title: "Casos Cerrados",
+      value: closedCases,
+      icon: FolderOpen,
+      color: "text-muted-foreground",
+      bg: "bg-muted",
+      borderColor: "border-l-muted-foreground",
     },
   ]
 
@@ -101,12 +108,12 @@ export default function MisCasosPage() {
         c.clientDoc.includes(q) ||
         c.assignedStudent.toLowerCase().includes(q) ||
         c.assignedProfessor.toLowerCase().includes(q)
-      const matchStatus = filterStatus === "all" || c.status === filterStatus
-      const matchSemaphore = filterSemaphore === "all" || c.semaphore === filterSemaphore
+      const matchPhase = filterPhase === "all" || getPhaseFromStatus(c.status) === Number(filterPhase)
+      const matchSemaphore = filterSemaphore === "all" || getSemaphoreFromDeadline(c.deadline) === filterSemaphore
       const matchArea = filterArea === "all" || c.area === filterArea
-      return matchSearch && matchStatus && matchSemaphore && matchArea
+      return matchSearch && matchPhase && matchSemaphore && matchArea
     })
-  }, [search, filterStatus, filterSemaphore, filterArea])
+  }, [search, filterPhase, filterSemaphore, filterArea])
 
   return (
     <div className="flex flex-col gap-6">
@@ -130,7 +137,7 @@ export default function MisCasosPage() {
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
             <span className="font-medium text-destructive">
-              Tienes {redAlerts.length} caso(s) proximos a vencer. Revisa inmediatamente.
+              Tienes {redAlerts.length} caso(s) vencido(s). Requiere atencion inmediata.
             </span>
           </div>
           <Button
@@ -200,21 +207,20 @@ export default function MisCasosPage() {
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <label htmlFor="filterStatus" className="text-sm font-medium text-foreground">
-                Estado
+              <label htmlFor="filterPhase" className="text-sm font-medium text-foreground">
+                Fase
               </label>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger id="filterStatus" className="w-full sm:w-48">
-                  <SelectValue placeholder="Todos los estados" />
+              <Select value={filterPhase} onValueChange={setFilterPhase}>
+                <SelectTrigger id="filterPhase" className="w-full sm:w-48">
+                  <SelectValue placeholder="Todas las fases" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="Evaluacion">Evaluacion</SelectItem>
-                  <SelectItem value="Sustanciacion">Sustanciacion</SelectItem>
-                  <SelectItem value="Revision del profesor">Revision del profesor</SelectItem>
-                  <SelectItem value="Aprobado">Aprobado</SelectItem>
-                  <SelectItem value="Seguimiento">Seguimiento</SelectItem>
-                  <SelectItem value="Cerrado">Cerrado</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="1">Fase 1 - Evaluacion</SelectItem>
+                  <SelectItem value="2">Fase 2 - Revision</SelectItem>
+                  <SelectItem value="3">Fase 3 - Aprobacion</SelectItem>
+                  <SelectItem value="4">Fase 4 - Seguimiento</SelectItem>
+                  <SelectItem value="5">Cerrado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -228,20 +234,20 @@ export default function MisCasosPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="red">Rojo - Urgente</SelectItem>
-                  <SelectItem value="yellow">Amarillo - Precaucion</SelectItem>
+                  <SelectItem value="red">Rojo - Vencido</SelectItem>
+                  <SelectItem value="yellow">Amarillo - Proximo vencimiento</SelectItem>
                   <SelectItem value="green">Verde - En tiempo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {(filterStatus !== "all" || filterSemaphore !== "all" || filterArea !== "all" || search) && (
+            {(filterPhase !== "all" || filterSemaphore !== "all" || filterArea !== "all" || search) && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-muted-foreground"
                 onClick={() => {
                   setSearch("")
-                  setFilterStatus("all")
+                  setFilterPhase("all")
                   setFilterSemaphore("all")
                   setFilterArea("all")
                 }}
@@ -272,10 +278,9 @@ export default function MisCasosPage() {
                   <TableHead>Cliente</TableHead>
                   <TableHead className="hidden md:table-cell">Tipo</TableHead>
                   <TableHead className="hidden md:table-cell">Area</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Fase</TableHead>
                   <TableHead className="hidden lg:table-cell">Profesor</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha limite</TableHead>
-                  <TableHead className="text-right hidden sm:table-cell">Horas</TableHead>
                   <TableHead className="w-16">
                     <span className="sr-only">Acciones</span>
                   </TableHead>
@@ -296,7 +301,7 @@ export default function MisCasosPage() {
                     <TableRow key={c.id} className="hover:bg-muted/50 transition-colors">
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Semaphore color={c.semaphore} size="md" />
+                          <Semaphore color={getSemaphoreFromDeadline(c.deadline)} size="md" />
                           {c.highRiskAlert && (
                             <AlertTriangle size={14} className="text-destructive" aria-label="Riesgo alto" />
                           )}
@@ -322,22 +327,30 @@ export default function MisCasosPage() {
                         {c.area}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className={statusBadge[c.status] || ""}>
-                          {c.status}
+                        <Badge variant="secondary" className={phaseBadge[getPhaseFromStatus(c.status)] || ""}>
+                          Fase {getPhaseFromStatus(c.status)} - {PHASE_LABELS[getPhaseFromStatus(c.status)]}
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground">
                         {c.assignedProfessor}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground">
-                        {new Date(c.deadline).toLocaleDateString("es-CO", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right hidden sm:table-cell">
-                        <span className="font-bold text-foreground">{c.hoursSpent}h</span>
+                      <TableCell className="hidden lg:table-cell">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-muted-foreground">
+                            {new Date(c.deadline).toLocaleDateString("es-CO", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                          <span className={`text-[10px] font-semibold ${
+                            getSemaphoreFromDeadline(c.deadline) === "red" ? "text-destructive" :
+                            getSemaphoreFromDeadline(c.deadline) === "yellow" ? "text-amber-600" :
+                            "text-success"
+                          }`}>
+                            {getSemaphoreLabel(getSemaphoreFromDeadline(c.deadline))}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="icon" asChild aria-label={`Ver caso ${c.radicado}`}>
