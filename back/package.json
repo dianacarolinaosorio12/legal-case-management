@@ -1,0 +1,45 @@
+{
+  "name": "sicop-backend",
+  "version": "1.0.0",
+  "description": "SICOP Backend - Microservices with Shared Database",
+  "private": true,
+  "scripts": {
+    "db:generate": "npx prisma generate --schema=./prisma/schema.prisma",
+    "db:push": "npx prisma db push --schema=./prisma/schema.prisma",
+    "db:seed": "npx prisma db seed --schema=./prisma/schema.prisma",
+    "db:studio": "npx prisma studio --schema=./prisma/schema.prisma",
+    "db:reset": "npx prisma db push --force-reset --schema=./prisma/schema.prisma && npm run db:seed",
+    "setup:db": "npm install && npm run db:generate && npm run db:push && npm run db:seed",
+    "install:all": "npm install && npm run install:auth && npm run install:student",
+    "install:auth": "cd auth-service && npm install",
+    "install:student": "cd student-service && npm install",
+    "dev:auth": "cd auth-service && npm run dev",
+    "dev:student": "cd student-service && npm run dev",
+    "dev:all": "concurrently \"npm run dev:auth\" \"npm run dev:student\"",
+    "build:auth": "cd auth-service && npm run build",
+    "build:student": "cd student-service && npm run build",
+    "build:all": "npm run build:auth && npm run build:student",
+    "start:auth": "cd auth-service && npm start",
+    "start:student": "cd student-service && npm start",
+    "start:all": "concurrently \"npm run start:auth\" \"npm run start:student\"",
+    "docker:up": "docker-compose up -d sicop-main-db",
+    "docker:down": "docker-compose down",
+    "docker:reset": "docker-compose down -v && docker volume rm back_sicop_main_data || true"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "5.19.1",
+    "prisma": "5.19.1"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  }
+}

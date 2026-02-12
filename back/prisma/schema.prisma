@@ -7,6 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  password          String
+  role              UserRole
+  area              CaseArea?
+  activeCases       Int      @default(0)
+  totalPracticeHours Int     @default(0)
+  semester          String?
+  resetToken        String?  
+  resetTokenExpires DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  assignedCases     LegalCase[] @relation("assignedStudent")
+
+  @@map("users")
+}
+
 model LegalCase {
   id                String           @id @default(cuid())
   radicado          String           @unique
@@ -22,7 +43,7 @@ model LegalCase {
   semaphore         SemaphoreColor
   deadline          String
   createdAt         String
-  assignedStudent   String
+  assignedStudentName   String
   assignedProfessor String
   description       String
   isMinor           Boolean
@@ -39,7 +60,16 @@ model LegalCase {
   hoursSpent       Float
   assignedStudentId String? @map("assigned_student_id")
   
+  // Relations
+  assignedStudent   User?   @relation("assignedStudent", fields: [assignedStudentId], references: [id])
+  
   @@map("legal_cases")
+}
+
+enum UserRole {
+  estudiante
+  profesor
+  administrativo
 }
 
 enum CaseType {

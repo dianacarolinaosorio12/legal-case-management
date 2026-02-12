@@ -3,9 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { resolve } from 'path';
 import casesRoutes from './routes/cases';
 
-dotenv.config();
+dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 const app = express();
 const prisma = new PrismaClient();
@@ -18,7 +19,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-app.use('/cases', casesRoutes);
+app.use('/', casesRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'student-service' });

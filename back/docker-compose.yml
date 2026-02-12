@@ -1,31 +1,17 @@
 version: '3.8'
 
 services:
-  auth-db:
+  sicop-main-db:
     image: postgres:15-alpine
-    container_name: sicop-auth-db
+    container_name: sicop-main-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: auth_db
+      POSTGRES_DB: sicop_main_db
     ports:
       - "5432:5432"
     volumes:
-      - auth_data:/var/lib/postgresql/data
-    networks:
-      - sicop-network
-
-  student-db:
-    image: postgres:15-alpine
-    container_name: sicop-student-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: student_db
-    ports:
-      - "5433:5432"
-    volumes:
-      - student_data:/var/lib/postgresql/data
+      - sicop_main_data:/var/lib/postgresql/data
     networks:
       - sicop-network
 
@@ -36,14 +22,14 @@ services:
     container_name: sicop-auth-service
     environment:
       PORT: 3001
-      DATABASE_URL: "postgresql://postgres:password@auth-db:5432/auth_db"
+      DATABASE_URL: "postgresql://postgres:password@sicop-main-db:5432/sicop_main_db"
       JWT_SECRET: "your-super-secret-jwt-key-change-in-production"
       JWT_EXPIRES_IN: "24h"
       CORS_ORIGIN: "http://localhost:3000"
     ports:
       - "3001:3001"
     depends_on:
-      - auth-db
+      - sicop-main-db
     volumes:
       - ./auth-service:/app
       - /app/node_modules
@@ -57,13 +43,13 @@ services:
     container_name: sicop-student-service
     environment:
       PORT: 3002
-      DATABASE_URL: "postgresql://postgres:password@student-db:5432/student_db"
+      DATABASE_URL: "postgresql://postgres:password@sicop-main-db:5432/sicop_main_db"
       JWT_SECRET: "your-super-secret-jwt-key-change-in-production"
       CORS_ORIGIN: "http://localhost:3000"
     ports:
       - "3002:3002"
     depends_on:
-      - student-db
+      - sicop-main-db
     volumes:
       - ./student-service:/app
       - /app/node_modules
@@ -71,8 +57,7 @@ services:
       - sicop-network
 
 volumes:
-  auth_data:
-  student_data:
+  sicop_main_data:
 
 networks:
   sicop-network:

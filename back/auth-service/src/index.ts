@@ -3,9 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { resolve } from 'path';
 import authRoutes from './routes/auth';
 
-dotenv.config();
+dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 const app = express();
 const prisma = new PrismaClient();

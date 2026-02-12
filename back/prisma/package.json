@@ -1,0 +1,25 @@
+{
+  "name": "sicop-prisma",
+  "version": "1.0.0",
+  "description": "Prisma configuration for SICOP",
+  "private": true,
+  "scripts": {
+    "db:generate": "prisma generate --schema=./schema.prisma",
+    "db:push": "prisma db push --schema=./schema.prisma",
+    "db:seed": "prisma db seed --schema=./schema.prisma",
+    "db:studio": "prisma studio --schema=./schema.prisma"
+  },
+  "devDependencies": {
+    "prisma": "^5.19.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "@types/node": "^22.19.11",
+    "bcrypt": "^5.1.1"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.1"
+  },
+  "prisma": {
+    "seed": "ts-node ./seed.ts"
+  }
+}
