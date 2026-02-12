@@ -1,13 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   Inbox,
-  FileSearch,
-  Eye,
-  CheckCircle2,
-  Activity,
   Calendar,
   Scale,
 } from "lucide-react"
@@ -27,19 +23,13 @@ import {
 
 const navItems = [
   { label: "Bandeja", href: "/profesor", icon: Inbox, badge: "5" },
-  { label: "Fase 1 - Evaluacion", href: "/profesor?fase=1", icon: FileSearch },
-  { label: "Fase 2 - Revision", href: "/profesor?fase=2", icon: Eye },
-  { label: "Fase 3 - Aprobacion", href: "/profesor?fase=3", icon: CheckCircle2 },
-  { label: "Fase 4 - Seguimiento", href: "/profesor?fase=4", icon: Activity },
   { label: "Calendario", href: "/profesor/calendario", icon: Calendar },
 ]
 
 export function ProfessorSidebar() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
   const { user } = useAuth()
   const professorArea = user?.area || "Laboral"
-  const currentFase = searchParams.get("fase")
 
   return (
     <Sidebar>
@@ -63,12 +53,7 @@ export function ProfessorSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
-                const isActive =
-                  item.href === "/profesor"
-                    ? pathname === "/profesor" && !currentFase
-                    : item.href === "/profesor/calendario"
-                      ? pathname === "/profesor/calendario"
-                      : item.href.includes("fase=") && currentFase === item.href.split("fase=")[1]
+                const isActive = pathname === item.href
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>

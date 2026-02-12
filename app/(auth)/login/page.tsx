@@ -4,12 +4,19 @@ import React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, LogIn, Scale, BookOpen, GraduationCap, BookText, Settings, ArrowRight, FileText, Users, ShieldCheck } from "lucide-react"
+import { Eye, EyeOff, LogIn, Scale, BookOpen, GraduationCap, BookText, Settings, ArrowRight, FileText, Users, ShieldCheck, Mail, CheckCircle2, ArrowLeft, KeyRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { useAuth } from "@/lib/auth-context"
 
 const demoUsers = [
@@ -51,6 +58,12 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
+  // Password recovery
+  const [showRecovery, setShowRecovery] = useState(false)
+  const [recoveryEmail, setRecoveryEmail] = useState("")
+  const [recoveryStep, setRecoveryStep] = useState<"form" | "sending" | "sent">("form")
+  const [recoveryError, setRecoveryError] = useState("")
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
@@ -75,6 +88,32 @@ export default function LoginPage() {
     }
   }
 
+  async function handleRecovery(e: React.FormEvent) {
+    e.preventDefault()
+    setRecoveryError("")
+
+    if (!recoveryEmail.trim()) {
+      setRecoveryError("Por favor ingrese su correo electronico.")
+      return
+    }
+    if (!recoveryEmail.includes("@")) {
+      setRecoveryError("Por favor ingrese un correo valido.")
+      return
+    }
+
+    setRecoveryStep("sending")
+    // Simulate sending email
+    await new Promise((r) => setTimeout(r, 1500))
+    setRecoveryStep("sent")
+  }
+
+  function openRecoveryDialog() {
+    setRecoveryEmail("")
+    setRecoveryError("")
+    setRecoveryStep("form")
+    setShowRecovery(true)
+  }
+
   function handleDemoLogin(userId: string, route: string) {
     login(userId)
     router.push(route)
@@ -83,7 +122,14 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* Left panel - Branding */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-gradient-navy relative flex-col justify-between p-10 overflow-hidden">
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] relative flex-col justify-between p-10 overflow-hidden">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/edificio-login.png')" }}
+        />
+        {/* Navy overlay */}
+        <div className="absolute inset-0 bg-[#030568]/80" />
         {/* Decorative blurs */}
         <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-amber-300/5 blur-3xl" />
         <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-white/[0.03] blur-3xl" />
@@ -149,7 +195,7 @@ export default function LoginPage() {
             <CardHeader className="flex flex-col gap-2 pb-2 pt-7 px-7">
               <h1 className="text-2xl font-bold text-foreground tracking-tight">Iniciar Sesion</h1>
               <p className="text-sm text-muted-foreground">
-                Ingrese sus credenciales institucionales
+                Ingrese sus credenciales para acceder
               </p>
             </CardHeader>
             <CardContent className="px-7 pb-6">
@@ -164,11 +210,11 @@ export default function LoginPage() {
                 )}
 
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="email" className="text-sm font-medium">Correo institucional</Label>
+                  <Label htmlFor="email" className="text-sm font-medium">Correo electronico</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="usuario@universidad.edu.co"
+                    placeholder="usuario@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -210,9 +256,13 @@ export default function LoginPage() {
                       Recordarme
                     </Label>
                   </div>
-                  <Link href="#" className="text-sm text-secondary underline-offset-4 hover:underline">
+                  <button
+                    type="button"
+                    onClick={openRecoveryDialog}
+                    className="text-sm text-secondary underline-offset-4 hover:underline"
+                  >
                     Olvido su contrasena?
-                  </Link>
+                  </button>
                 </div>
 
                 <Button
@@ -280,6 +330,155 @@ export default function LoginPage() {
           Consultorio Juridico &middot; Universitaria de Colombia
         </footer>
       </div>
+
+      {/* Password Recovery Dialog */}
+      <Dialog open={showRecovery} onOpenChange={setShowRecovery}>
+        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden rounded-2xl border-border/50">
+          {/* Header gradient */}
+          <div className="bg-gradient-to-br from-[#030568] to-[#050a8e] px-7 pt-8 pb-6">
+            <div className="flex items-center justify-center mb-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 shadow-lg">
+                {recoveryStep === "sent" ? (
+                  <CheckCircle2 size={32} className="text-amber-300" />
+                ) : (
+                  <KeyRound size={32} className="text-amber-300" />
+                )}
+              </div>
+            </div>
+            <DialogHeader className="text-center space-y-1.5">
+              <DialogTitle className="text-xl font-bold text-white">
+                {recoveryStep === "sent" ? "Correo enviado" : "Recuperar contrasena"}
+              </DialogTitle>
+              <DialogDescription className="text-white/50 text-sm">
+                {recoveryStep === "sent"
+                  ? "Revise su bandeja de entrada"
+                  : "Le enviaremos un enlace de recuperacion a su correo"}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="px-7 pb-7 pt-5">
+            {recoveryStep === "form" && (
+              <form onSubmit={handleRecovery} className="flex flex-col gap-4">
+                {recoveryError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+                  >
+                    {recoveryError}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="recoveryEmail" className="text-sm font-medium">
+                    Correo electronico
+                  </Label>
+                  <div className="relative">
+                    <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="recoveryEmail"
+                      type="email"
+                      placeholder="usuario@gmail.com"
+                      value={recoveryEmail}
+                      onChange={(e) => setRecoveryEmail(e.target.value)}
+                      autoFocus
+                      autoComplete="email"
+                      className="h-11 pl-10 rounded-xl border-border/50 bg-muted/30 focus:bg-card transition-colors"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ingrese el correo asociado a su cuenta para recibir las instrucciones.
+                  </p>
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="h-12 font-semibold bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 rounded-xl transition-all hover:shadow-lg hover:shadow-primary/25"
+                >
+                  <Mail size={18} className="mr-2" />
+                  Enviar enlace de recuperacion
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRecovery(false)}
+                  className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft size={14} />
+                  Volver al inicio de sesion
+                </button>
+              </form>
+            )}
+
+            {recoveryStep === "sending" && (
+              <div className="flex flex-col items-center gap-4 py-6">
+                <div className="flex h-12 w-12 items-center justify-center">
+                  <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-primary/20 border-t-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-foreground">Enviando correo...</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Enviando a {recoveryEmail}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {recoveryStep === "sent" && (
+              <div className="flex flex-col gap-5">
+                <div className="rounded-xl border border-success/20 bg-success/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 size={20} className="text-success shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <p className="text-sm font-medium text-foreground">
+                        Correo enviado exitosamente
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Hemos enviado un enlace de recuperacion a:
+                      </p>
+                      <p className="text-sm font-mono font-medium text-primary mt-0.5">
+                        {recoveryEmail}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-muted/50 p-4">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    <span className="font-semibold text-foreground">No recibio el correo?</span> Revise su carpeta de
+                    spam o correo no deseado. El enlace expira en 24 horas. Si continua con problemas, contacte a
+                    soporte tecnico.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="h-11 rounded-xl bg-transparent"
+                    onClick={() => {
+                      setRecoveryStep("form")
+                      setRecoveryEmail("")
+                    }}
+                  >
+                    <Mail size={16} className="mr-2" />
+                    Enviar a otro correo
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRecovery(false)}
+                    className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+                  >
+                    <ArrowLeft size={14} />
+                    Volver al inicio de sesion
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

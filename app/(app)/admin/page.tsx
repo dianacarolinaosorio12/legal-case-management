@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import {
   FolderOpen,
   CheckCircle2,
@@ -197,6 +197,8 @@ export default function AdminDashboard() {
   // RF-24: Bulk upload dialog state
   const [showBulkUploadDialog, setShowBulkUploadDialog] = useState(false)
   const [bulkFiles, setBulkFiles] = useState<{ name: string; size: string }[]>([])
+  const [isDraggingBulk, setIsDraggingBulk] = useState(false)
+  const bulkFileInputRef = useRef<HTMLInputElement>(null)
 
   // Case list filters
   const [searchQuery, setSearchQuery] = useState("")
@@ -222,11 +224,23 @@ export default function AdminDashboard() {
 
   function handleBulkDrop(e: React.DragEvent) {
     e.preventDefault()
+    setIsDraggingBulk(false)
     const newFiles = Array.from(e.dataTransfer.files).map((f) => ({
       name: f.name,
       size: `${(f.size / 1024).toFixed(0)} KB`,
     }))
     setBulkFiles((prev) => [...prev, ...newFiles])
+  }
+
+  function handleBulkFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map((f) => ({
+        name: f.name,
+        size: `${(f.size / 1024).toFixed(0)} KB`,
+      }))
+      setBulkFiles((prev) => [...prev, ...newFiles])
+      e.target.value = ""
+    }
   }
 
   return (
@@ -819,16 +833,37 @@ export default function AdminDashboard() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
+              <input
+                ref={bulkFileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={handleBulkFileInput}
+              />
               <div
-                className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-muted/30 p-6 text-center transition-colors hover:border-primary/50"
-                onDragOver={(e) => e.preventDefault()}
+                className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
+                  isDraggingBulk
+                    ? "border-primary bg-primary/5 scale-[1.01]"
+                    : "border-border bg-muted/30 hover:border-primary/50 hover:bg-muted/50"
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingBulk(true) }}
+                onDragLeave={() => setIsDraggingBulk(false)}
                 onDrop={handleBulkDrop}
+                onClick={() => bulkFileInputRef.current?.click()}
                 role="button"
                 tabIndex={0}
-                aria-label="Area de carga masiva de archivos"
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") bulkFileInputRef.current?.click() }}
+                aria-label="Area de carga masiva de archivos. Arrastra archivos o haz clic para seleccionar."
               >
-                <Upload size={28} className="text-muted-foreground" aria-hidden="true" />
-                <p className="text-sm text-foreground">Arrastra archivos o carpetas aqui</p>
+                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-colors ${
+                  isDraggingBulk ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                }`}>
+                  <Upload size={28} />
+                </div>
+                <p className="text-sm font-medium text-foreground">
+                  {isDraggingBulk ? "Suelta los archivos aqui" : "Arrastra archivos aqui o haz clic para seleccionar"}
+                </p>
                 <p className="text-xs text-muted-foreground">PDF, DOCX, JPG, PNG - Sin limite</p>
               </div>
               {bulkFiles.length > 0 && (
