@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { useAuth } from "@/lib/auth-context"
+import { AIChat } from "@/components/ai-chat"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -19,6 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </SidebarInset>
+      <AIChat />
     </SidebarProvider>
   )
 }

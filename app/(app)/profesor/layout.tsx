@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { ProfessorSidebar } from "@/components/professor-sidebar"
 import { AppHeader } from "@/components/app-header"
 import { useAuth } from "@/lib/auth-context"
+import { AIChat } from "@/components/ai-chat"
 
 export default function ProfessorLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -21,6 +22,7 @@ export default function ProfessorLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </SidebarInset>
+      <AIChat />
     </SidebarProvider>
   )
 }
