@@ -1,110 +1,79 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { type SystemUser } from "./mock-data"
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react"
+import apiClient from "@/lib/api-client"
+
+interface User {
+  id: string
+  name: string
+  email: string
+  role: "estudiante" | "profesor" | "administrativo"
+  area?: string
+  activeCases?: number
+  semester?: string
+}
 
 interface AuthContextType {
-  user: SystemUser | null
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  loginByRole: (role: "estudiante" | "profesor" | "administrativo") => Promise<{ success: boolean; error?: string }>
+  user: User | null
+  token: string | null
+  login: (email: string, password: string) => Promise<void>
   logout: () => void
   isLoading: boolean
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  login: async () => ({ success: false }),
-  loginByRole: async () => ({ success: false }),
-  logout: () => {},
-  isLoading: false,
-})
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<SystemUser | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [token, setToken] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Restore session on mount
   useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem("sicop_user")
-      const token = sessionStorage.getItem("sicop_token")
-      if (stored && token) {
-        const parsed = JSON.parse(stored) as SystemUser
-        setUser(parsed)
+    const storedToken = localStorage.getItem("sicop_token")
+    const storedUser = localStorage.getItem("sicop_user")
+
+    if (storedToken && storedUser) {
+      setToken(storedToken)
+      try {
+        setUser(JSON.parse(storedUser))
+      } catch {
+        localStorage.removeItem("sicop_token")
+        localStorage.removeItem("sicop_user")
       }
-    } catch {
-      // ignore parse errors
     }
+    setIsLoading(false)
   }, [])
 
-  async function login(email: string, password: string): Promise<{ success: boolean; error?: string }> {
-    setIsLoading(true)
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:3001'}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        const userData: SystemUser = {
-          id: data.user.id,
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role,
-          area: data.user.area,
-          activeCases: data.user.activeCases,
-          totalPracticeHours: data.user.totalPracticeHours,
-          semester: data.user.semester,
-        }
-        
-        setUser(userData)
-        sessionStorage.setItem("sicop_user", JSON.stringify(userData))
-        sessionStorage.setItem("sicop_token", data.token)
-        return { success: true }
-      } else {
-        return { success: false, error: data.error || 'Login failed' }
-      }
-    } catch (error) {
-      return { success: false, error: 'Network error' }
-    } finally {
-      setIsLoading(false)
-    }
+  const login = async (email: string, password: string) => {
+    const response = await apiClient.auth.login(email, password) as { token: string; user: User }
+    
+    localStorage.setItem("sicop_token", response.token)
+    localStorage.setItem("sicop_user", JSON.stringify(response.user))
+    
+    setToken(response.token)
+    setUser(response.user)
   }
 
-  async function loginByRole(role: "estudiante" | "profesor" | "administrativo"): Promise<{ success: boolean; error?: string }> {
-    // Default credentials for demo purposes
-    const credentials = {
-      estudiante: { email: "mgonzalez@universidad.edu.co", password: "password123" },
-      profesor: { email: "jperez@universidad.edu.co", password: "password123" },
-      administrativo: { email: "sdiaz@universidad.edu.co", password: "password123" },
-    }
-
-    const creds = credentials[role]
-    if (!creds) {
-      return { success: false, error: 'Invalid role' }
-    }
-
-    return login(creds.email, creds.password)
-  }
-
-  function logout() {
+  const logout = () => {
+    localStorage.removeItem("sicop_token")
+    localStorage.removeItem("sicop_user")
+    setToken(null)
     setUser(null)
-    sessionStorage.removeItem("sicop_user")
-    sessionStorage.removeItem("sicop_token")
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, loginByRole, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+  return context
 }
+
+export default AuthContext

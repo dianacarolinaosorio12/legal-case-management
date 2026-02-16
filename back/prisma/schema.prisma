@@ -54,7 +54,6 @@ model LegalCase {
   substitutionHistory Json // Array of substitution objects
   interviewNotes    String?
   aiTags           Json // Array of AITag objects
-  documents        Json // Array of CaseDocument objects
   auditLog         Json // Array of AuditEntry objects
   survey           Json? // SatisfactionSurvey object
   hoursSpent       Float
@@ -62,6 +61,7 @@ model LegalCase {
   
   // Relations
   assignedStudent   User?   @relation("assignedStudent", fields: [assignedStudentId], references: [id])
+  documents         Document[]
   
   @@map("legal_cases")
 }
@@ -72,13 +72,16 @@ model Document {
   fileName    String
   fileType    String
   fileSize    Int
-  caseId      String
+  legalCaseId String   @map("legal_case_id")
   uploadedBy  String
   description String?
   s3Key       String?  // Clave en S3 (para futura integración)
   status      String   @default("active")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Relations
+  legalCase   LegalCase @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
 
   @@map("documents")
 }

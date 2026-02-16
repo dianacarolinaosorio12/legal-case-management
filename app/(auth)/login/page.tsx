@@ -1,46 +1,15 @@
 "use client"
 
-import React from "react"
-import { useState } from "react"
+import React, { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, LogIn, Scale, BookOpen, GraduationCap, BookText, Settings, ArrowRight, FileText, Users, ShieldCheck } from "lucide-react"
+import { Eye, EyeOff, LogIn, Scale } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
-
-const demoUsers = [
-  {
-    id: "u1",
-    label: "Estudiante",
-    name: "Maria Gonzalez",
-    desc: "Gestiona expedientes y documentos",
-    icon: GraduationCap,
-    route: "/dashboard",
-    role: "estudiante" as const,
-  },
-  {
-    id: "u4",
-    label: "Profesor",
-    name: "Dr. Perez (Laboral)",
-    desc: "Revisa y aprueba actuaciones",
-    icon: BookText,
-    route: "/profesor",
-    role: "profesor" as const,
-  },
-  {
-    id: "u7",
-    label: "Administrativo",
-    name: "Sandra Milena Diaz",
-    desc: "Gestion logistica y reasignacion",
-    icon: Settings,
-    route: "/admin",
-    role: "administrativo" as const,
-  },
-]
 
 export default function LoginPage() {
   const router = useRouter()
@@ -56,28 +25,40 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
 
-    await new Promise((r) => setTimeout(r, 800))
-
-    if (email && password) {
-      if (email.includes("admin")) {
-        login("u7")
-        router.push("/admin")
-      } else if (email.includes("profesor") || email.includes("prof")) {
-        login("u4")
-        router.push("/profesor")
+    try {
+      await login(email, password)
+      
+      const userRole = localStorage.getItem("sicop_user")
+      if (userRole) {
+        const user = JSON.parse(userRole)
+        
+        switch (user.role) {
+          case "profesor":
+            router.push("/profesor")
+            break
+          case "administrativo":
+            router.push("/admin")
+            break
+          case "estudiante":
+          default:
+            router.push("/dashboard")
+            break
+        }
       } else {
-        login("u1")
         router.push("/dashboard")
       }
-    } else {
-      setError("Por favor ingrese su correo y contrasena.")
+    } catch (err: unknown) {
+      const error = err as { status?: number; message?: string }
+      if (error.status === 401) {
+        setError("Credenciales incorrectas. Verifica tu correo y contraseña.")
+      } else if (error.status === 0 || error.status === undefined) {
+        setError("No se pudo conectar al servidor. Verifica que el backend esté corriendo en el puerto 3001.")
+      } else {
+        setError(error.message || "Error al iniciar sesión. Intenta de nuevo.")
+      }
+    } finally {
       setLoading(false)
     }
-  }
-
-  function handleDemoLogin(userId: string, route: string) {
-    login(userId)
-    router.push(route)
   }
 
   return (
@@ -101,32 +82,18 @@ export default function LoginPage() {
 
           <div className="flex flex-col gap-5">
             <h2 className="text-3xl font-bold text-white leading-tight">
-              Consultorio Juridico<br />
+              Consultorio Jurídico<br />
               <span className="bg-gradient-to-r from-amber-300 to-amber-400 bg-clip-text text-transparent">Centro de Conciliación</span>
             </h2>
             <p className="text-white/50 text-base leading-relaxed max-w-sm">
-              Casos de procesos juridicos, Control de terminos, seguimientos y trazabilidad de expedientes.
+              Casos de procesos jurídicos, Control de términos, seguimientos y trazabilidad de expedientes.
             </p>
-          </div>
-
-          <div className="mt-14 flex flex-col gap-5">
-            {[
-            
-            ].map((feature) => (
-              <div key={feature.text} className="flex items-center gap-4 group">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/[0.08] border border-white/10 group-hover:bg-amber-300/10 transition-colors">
-                  <feature.icon size={18} className="text-amber-300/80" />
-                </div>
-                <span className="text-sm text-white/70 font-medium">{feature.text}</span>
-              </div>
-            ))}
           </div>
         </div>
 
         <div className="relative z-10 flex items-center gap-3 border-t border-white/[0.08] pt-6">
-          <BookOpen size={16} className="text-white/30" aria-hidden="true" />
           <span className="text-xs text-white/30 tracking-wide">
-            Universitaria de Colombia &middot; Educacion Superior de Calidad
+            Universitaria de Colombia · Educación Superior de Calidad
           </span>
         </div>
       </div>
@@ -141,13 +108,13 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col">
               <span className="text-2xl font-bold tracking-tight text-primary">SICOP</span>
-              <span className="text-xs text-muted-foreground leading-none">Sistema de Control de Practicas</span>
+              <span className="text-xs text-muted-foreground leading-none">Sistema de Control de Prácticas</span>
             </div>
           </div>
 
           <Card className="border-border/50 shadow-xl shadow-primary/[0.04] overflow-hidden rounded-2xl">
             <CardHeader className="flex flex-col gap-2 pb-2 pt-7 px-7">
-              <h1 className="text-2xl font-bold text-foreground tracking-tight">Iniciar Sesion</h1>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">Iniciar Sesión</h1>
               <p className="text-sm text-muted-foreground">
                 Ingrese sus credenciales institucionales
               </p>
@@ -178,12 +145,12 @@ export default function LoginPage() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="password" className="text-sm font-medium">Contrasena</Label>
+                  <Label htmlFor="password" className="text-sm font-medium">Contraseña</Label>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Ingrese su contrasena"
+                      placeholder="Ingrese su contraseña"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -196,7 +163,7 @@ export default function LoginPage() {
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </Button>
@@ -210,8 +177,8 @@ export default function LoginPage() {
                       Recordarme
                     </Label>
                   </div>
-                  <Link href="#" className="text-sm text-secondary underline-offset-4 hover:underline">
-                    Olvido su contrasena?
+                  <Link href="/forgot-password" className="text-sm text-secondary underline-offset-4 hover:underline">
+                    ¿Olvidó su contraseña?
                   </Link>
                 </div>
 
@@ -224,7 +191,7 @@ export default function LoginPage() {
                   {loading ? (
                     <span className="flex items-center gap-2">
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                      Ingresando...
+                      Iniciando sesión...
                     </span>
                   ) : (
                     <span className="flex items-center gap-2">
@@ -234,33 +201,6 @@ export default function LoginPage() {
                   )}
                 </Button>
               </form>
-
-              {/* Demo Role Selector */}
-              <div className="mt-6 border-t border-border/50 pt-5">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
-                  Acceso rapido (Demo)
-                </p>
-                <div className="flex flex-col gap-2">
-                  {demoUsers.map((u) => (
-                    <button
-                      key={u.id}
-                      onClick={() => handleDemoLogin(u.id, u.route)}
-                      className="flex items-center gap-3 rounded-xl border border-border/50 p-3.5 text-left transition-all hover:bg-muted/60 hover:border-primary/30 hover:shadow-sm group"
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.08] text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                        <u.icon size={18} />
-                      </div>
-                      <div className="flex flex-1 flex-col min-w-0">
-                        <span className="text-sm font-semibold text-foreground">{u.label}</span>
-                        <span className="text-xs text-muted-foreground truncate">
-                          {u.name} &middot; {u.desc}
-                        </span>
-                      </div>
-                      <ArrowRight size={16} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                    </button>
-                  ))}
-                </div>
-              </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-0 border-t border-border/50 bg-gradient-to-r from-primary/[0.04] via-secondary/[0.04] to-primary/[0.04] p-0 overflow-hidden">
               <Link
@@ -271,13 +211,12 @@ export default function LoginPage() {
                   <Scale size={16} />
                 </div>
                 <span>Consultar estado de un caso</span>
-                <ArrowRight size={16} className="text-primary/40 group-hover:translate-x-1 transition-transform" />
               </Link>
             </CardFooter>
           </Card>
         </main>
         <footer className="mt-8 pb-6 text-center text-xs text-muted-foreground">
-          Consultorio Juridico &middot; Universitaria de Colombia
+          Consultorio Jurídico · Universitaria de Colombia
         </footer>
       </div>
     </div>

@@ -9,7 +9,6 @@
     "db:seed": "npx prisma db seed --schema=./prisma/schema.prisma",
     "db:studio": "npx prisma studio --schema=./prisma/schema.prisma",
     "db:reset": "npx prisma db push --force-reset --schema=./prisma/schema.prisma && npm run db:seed",
-    "db:generate:doc": "cd document-service && npx prisma generate --schema=./schema.prisma",
     "setup:db": "npm install && npm run db:generate && npm run db:push && npm run db:seed",
     "install:all": "npm install && npm run install:auth && npm run install:student && npm run install:document",
     "install:auth": "cd auth-service && npm install",
