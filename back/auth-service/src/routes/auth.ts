@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import Joi from 'joi';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
+import { sendPasswordResetEmail } from '../services/notify-service';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -101,10 +102,10 @@ router.post('/forgot-password', async (req, res) => {
       }
     });
 
+    await sendPasswordResetEmail(email, resetToken);
+
     res.json({ 
-      message: 'Password reset token generated',
-      resetToken,
-      expiresIn: '1 hour'
+      message: 'Password reset email sent successfully'
     });
   } catch (error) {
     console.error('Forgot password error:', error);

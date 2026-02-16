@@ -17,7 +17,7 @@ model User {
   activeCases       Int      @default(0)
   totalPracticeHours Int     @default(0)
   semester          String?
-  resetToken        String?  
+  resetToken        String?   @unique
   resetTokenExpires DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -64,6 +64,23 @@ model LegalCase {
   assignedStudent   User?   @relation("assignedStudent", fields: [assignedStudentId], references: [id])
   
   @@map("legal_cases")
+}
+
+// Modelo de Documentos para el Document Service
+model Document {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileType    String
+  fileSize    Int
+  caseId      String
+  uploadedBy  String
+  description String?
+  s3Key       String?  // Clave en S3 (para futura integración)
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("documents")
 }
 
 enum UserRole {
