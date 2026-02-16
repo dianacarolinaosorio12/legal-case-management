@@ -40,7 +40,7 @@ app.get('/documents/case/:caseId', async (req, res) => {
   try {
     const { caseId } = req.params;
     const documents = await prisma.document.findMany({
-      where: { caseId },
+      where: { legalCaseId: caseId },
       orderBy: { createdAt: 'desc' }
     });
     res.json(documents);
@@ -60,10 +60,10 @@ app.post('/documents', async (req, res) => {
         fileName,
         fileType,
         fileSize,
-        caseId,
+        legalCaseId: caseId,
         uploadedBy,
         description,
-        s3Key: `uploads/${caseId}/${fileName}`, // Mock S3 key
+        s3Key: `uploads/${caseId}/${fileName}`,
         status: 'active'
       }
     });

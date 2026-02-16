@@ -14,10 +14,16 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { ChevronDown, UserCircle, LogOut } from "lucide-react"
+import { useEffect, useState } from "react"
 
 export function AppHeader({ userName = "Maria Gonzalez" }: { userName?: string }) {
   const { logout } = useAuth()
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const profileHref = pathname.startsWith("/admin")
     ? "/admin/perfil"
@@ -30,6 +36,8 @@ export function AppHeader({ userName = "Maria Gonzalez" }: { userName?: string }
     : pathname.startsWith("/profesor")
       ? "Profesor"
       : "Estudiante"
+
+  const initials = mounted && userName ? userName.split(" ").map((n) => n[0]).join("") : "MG"
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center border-b border-border/60 bg-card/80 backdrop-blur-xl">
@@ -45,10 +53,10 @@ export function AppHeader({ userName = "Maria Gonzalez" }: { userName?: string }
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2.5 h-9 px-3 text-foreground hover:bg-muted/80 rounded-full transition-colors">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-[11px] font-bold text-white ring-2 ring-primary/20">
-                  {userName.split(" ").map((n) => n[0]).join("")}
+                  {initials}
                 </div>
                 <div className="hidden sm:flex flex-col items-start">
-                  <span className="text-sm font-medium leading-tight max-w-[120px] truncate">{userName}</span>
+                  <span className="text-sm font-medium leading-tight max-w-[120px] truncate" suppressHydrationWarning>{userName}</span>
                   <span className="text-[10px] text-muted-foreground leading-tight">{roleLabel}</span>
                 </div>
                 <ChevronDown size={14} className="hidden sm:block text-muted-foreground" />
@@ -56,7 +64,7 @@ export function AppHeader({ userName = "Maria Gonzalez" }: { userName?: string }
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg border-border/60">
               <div className="px-3 py-2 sm:hidden">
-                <p className="text-sm font-medium text-foreground">{userName}</p>
+                <p className="text-sm font-medium text-foreground" suppressHydrationWarning>{userName}</p>
                 <p className="text-xs text-muted-foreground">{roleLabel}</p>
               </div>
               <DropdownMenuSeparator className="sm:hidden" />

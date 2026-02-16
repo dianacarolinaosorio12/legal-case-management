@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useRef } from "react"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -24,6 +24,8 @@ import {
   FileSearch,
   Activity,
   ThumbsUp,
+  Trash2,
+  Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -82,6 +84,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [actionFeedback, setActionFeedback] = useState<string | null>(null)
   const [auditLog, setAuditLog] = useState<AuditEntry[]>(caseData.auditLog)
   const [chatMessages, setChatMessages] = useState(mockComments)
+  const [documents, setDocuments] = useState(caseData.documents)
+  const [showDeleteDocDialog, setShowDeleteDocDialog] = useState(false)
+  const [docToDelete, setDocToDelete] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const statusColor: Record<string, string> = {
     Evaluacion: "bg-muted text-muted-foreground",
@@ -157,6 +164,67 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       `El caso fue devuelto a la fase anterior: ${phaseLabel}.`
     )
     showFeedback(`Caso devuelto a ${phaseLabel}`)
+  }
+
+  function handleDeleteDocument() {
+    if (!docToDelete) return
+    const docName = documents.find((d) => d.id === docToDelete)?.name || "documento"
+    setDocuments((prev) => prev.filter((d) => d.id !== docToDelete))
+    setDocToDelete(null)
+    setShowDeleteDocDialog(false)
+    addAudit("Elimino documento", docName)
+    showFeedback("Documento eliminado correctamente")
+  }
+
+  function handleApproveDocument(docId: string) {
+    const docName = documents.find((d) => d.id === docId)?.name || "documento"
+    setDocuments((prev) =>
+      prev.map((d) => (d.id === docId ? { ...d, isApproved: true } : d))
+    )
+    addAudit("Otorgo VoBo a documento", docName)
+    showFeedback(`VoBo otorgado a: ${docName}`)
+  }
+
+  function processFiles(fileList: FileList) {
+    const ALLOWED = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt"]
+    const MAX_SIZE = 100 * 1024 * 1024
+    const newDocs = Array.from(fileList)
+      .filter((f) => {
+        const ext = f.name.substring(f.name.lastIndexOf(".")).toLowerCase()
+        return ALLOWED.includes(ext) && f.size <= MAX_SIZE
+      })
+      .map((f) => {
+        const ext = f.name.substring(f.name.lastIndexOf(".")).toLowerCase()
+        return {
+          id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: f.name,
+          size: f.size >= 1024 * 1024 ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : `${(f.size / 1024).toFixed(0)} KB`,
+          type: (ext === ".pdf" ? "pdf" : [".doc", ".docx"].includes(ext) ? "docx" : "image") as "pdf" | "docx" | "image",
+          uploadedBy: caseData.assignedProfessor,
+          uploadDate: new Date().toISOString().split("T")[0],
+          isApproved: false,
+          version: 1,
+        }
+      })
+    if (newDocs.length > 0) {
+      setDocuments((prev) => [...prev, ...newDocs])
+      const names = newDocs.map((d) => d.name).join(", ")
+      addAudit("Subio documento(s)", names)
+      showFeedback(`${newDocs.length} archivo(s) subido(s) correctamente`)
+    }
+  }
+
+  function handleDocDrop(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragging(false)
+    processFiles(e.dataTransfer.files)
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) {
+      processFiles(e.target.files)
+      e.target.value = ""
+    }
   }
 
   function handleSendMessage() {
@@ -488,23 +556,109 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
         {/* Documentos */}
         <TabsContent value="documentos" className="mt-6">
           <div className="flex flex-col gap-4">
-            {caseData.documents.map((doc) => (
+            {/* Upload zone for professor */}
+            {currentStatus !== "Cerrado" && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  className="hidden"
+                  onChange={handleFileInput}
+                />
+                <div
+                  className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
+                    isDragging
+                      ? "border-primary bg-primary/5 scale-[1.01]"
+                      : "border-border bg-muted/30 hover:border-primary/50 hover:bg-muted/50"
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDocDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click() }}
+                  aria-label="Area de carga de archivos. Arrastra archivos o haz clic para seleccionar."
+                >
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-2xl transition-colors ${
+                    isDragging ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                  }`}>
+                    <Upload size={28} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {isDragging ? "Suelta los archivos aqui" : "Arrastra archivos aqui o haz clic para seleccionar"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Word (DOC, DOCX), Excel (XLS, XLSX), PDF, TXT — Max 100 MB por archivo
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {documents.map((doc) => (
               <Card key={doc.id} className="border-border">
                 <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {doc.type === "docx" ? <FileIcon size={28} className="shrink-0 text-secondary" /> : <FileText size={28} className={`shrink-0 ${doc.type === "pdf" ? "text-destructive" : "text-success"}`} />}
+                    {doc.type === "docx" ? (
+                      <FileIcon size={28} className="shrink-0 text-secondary" />
+                    ) : (
+                      <FileText size={28} className={`shrink-0 ${doc.type === "pdf" ? "text-destructive" : "text-success"}`} />
+                    )}
                     <div className="flex flex-1 flex-col gap-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-medium text-foreground truncate">{doc.name}</span>
-                        {doc.isApproved && <Badge className="bg-success/15 text-success text-xs"><Lock size={10} className="mr-1" />VoBo</Badge>}
+                        {doc.isApproved && (
+                          <Badge className="bg-success/15 text-success text-xs">
+                            <Lock size={10} className="mr-1" />
+                            VoBo
+                          </Badge>
+                        )}
                         <Badge variant="secondary" className="text-xs">v{doc.version}</Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground truncate">{doc.size} | {doc.uploadedBy} | {new Date(doc.uploadDate).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}</span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {doc.size} | {doc.uploadedBy} | {new Date(doc.uploadDate).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" className="h-8 w-8"><Eye size={16} /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8"><Download size={16} /></Button>
+                  <div className="flex flex-wrap items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Ver ${doc.name}`}>
+                      <Eye size={16} />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Descargar ${doc.name}`}>
+                      <Download size={16} />
+                    </Button>
+                    {/* Dar VoBo - only for non-approved docs, not when case is closed */}
+                    {!doc.isApproved && currentStatus !== "Cerrado" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1 text-xs bg-transparent text-success border-success/30 hover:bg-success/10"
+                        onClick={() => handleApproveDocument(doc.id)}
+                        aria-label={`Dar VoBo a ${doc.name}`}
+                      >
+                        <ThumbsUp size={14} />
+                        <span className="hidden sm:inline">Dar VoBo</span>
+                      </Button>
+                    )}
+                    {/* Delete - only for non-approved docs, not when case is closed */}
+                    {!doc.isApproved && currentStatus !== "Cerrado" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setDocToDelete(doc.id)
+                          setShowDeleteDocDialog(true)
+                        }}
+                        aria-label={`Eliminar ${doc.name}`}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -606,6 +760,27 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Delete Document Dialog */}
+      <Dialog open={showDeleteDocDialog} onOpenChange={setShowDeleteDocDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar Documento</DialogTitle>
+            <DialogDescription>
+              Esta accion no se puede deshacer. El documento sera eliminado permanentemente del expediente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowDeleteDocDialog(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteDocument}>
+              <Trash2 size={14} className="mr-2" />
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

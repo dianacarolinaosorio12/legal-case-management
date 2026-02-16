@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Upload,
@@ -62,6 +62,8 @@ interface UploadedFile {
 
 export default function NuevoCasoPage() {
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [isMinor, setIsMinor] = useState(false)
   const [useAI, setUseAI] = useState(true)
@@ -94,6 +96,7 @@ export default function NuevoCasoPage() {
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
+    setIsDragging(false)
     const newFiles = Array.from(e.dataTransfer.files).map((f) => ({
       name: f.name,
       size: `${(f.size / 1024).toFixed(0)} KB`,
@@ -105,6 +108,23 @@ export default function NuevoCasoPage() {
       progress: 100,
     }))
     setFiles((prev) => [...prev, ...newFiles])
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files).map((f) => ({
+        name: f.name,
+        size: f.size >= 1024 * 1024 ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : `${(f.size / 1024).toFixed(0)} KB`,
+        type: (f.type.includes("word") || f.name.endsWith(".docx")
+          ? "docx"
+          : f.type.includes("image")
+            ? "image"
+            : "pdf") as UploadedFile["type"],
+        progress: 100,
+      }))
+      setFiles((prev) => [...prev, ...newFiles])
+      e.target.value = ""
+    }
   }
 
   // RF-10/RF-26: Simulated AI analysis
@@ -564,17 +584,36 @@ export default function NuevoCasoPage() {
           {currentStep === 4 && (
             <div className="flex flex-col gap-5">
               {/* RF-03: Drag & Drop Zone */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
+                className="hidden"
+                onChange={handleFileInput}
+              />
               <div
-                className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-muted/30 p-8 text-center transition-colors hover:border-primary/50 hover:bg-muted/50"
-                onDragOver={(e) => e.preventDefault()}
+                className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
+                  isDragging
+                    ? "border-primary bg-primary/5 scale-[1.01]"
+                    : "border-border bg-muted/30 hover:border-primary/50 hover:bg-muted/50"
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
                 role="button"
                 tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click() }}
                 aria-label="Area de carga de archivos. Arrastra archivos aqui o haz clic para seleccionar."
               >
-                <Upload size={32} className="text-muted-foreground" aria-hidden="true" />
-                <p className="text-base text-foreground">
-                  Arrastra archivos aqui o haz clic para seleccionar
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl transition-colors ${
+                  isDragging ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                }`}>
+                  <Upload size={32} />
+                </div>
+                <p className="text-base font-medium text-foreground">
+                  {isDragging ? "Suelta los archivos aqui" : "Arrastra archivos aqui o haz clic para seleccionar"}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Formatos aceptados: PDF, Word (DOC, DOCX), Excel (XLS, XLSX), TXT (Max 100 MB)
