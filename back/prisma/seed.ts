@@ -79,10 +79,22 @@ async function main() {
         substitutionHistory: [],
         interviewNotes: 'Cliente relata que lleva 3 meses esperando autorización para cirugía de columna.',
         aiTags: [{ tag: 'salud', confidence: 0.95 }, { tag: 'eps', confidence: 0.89 }],
-        documents: [{ name: 'historia_clinica.pdf', uploadDate: new Date().toISOString(), type: 'medical_record' }],
         auditLog: [{ date: new Date().toISOString(), action: 'case_created', user: student.name }],
         hoursSpent: 12.5,
         assignedStudentId: student.id
+      }
+    })
+
+    // 4.1 Crear documentos para case1 (relación)
+    await prisma.document.create({
+      data: {
+        fileName: 'historia_clinica.pdf',
+        fileType: 'application/pdf',
+        fileSize: 1024000,
+        legalCaseId: case1.id,
+        uploadedBy: student.id,
+        description: 'Historia clínica del paciente',
+        status: 'active'
       }
     })
 
@@ -113,10 +125,22 @@ async function main() {
         substitutionHistory: [],
         interviewNotes: 'Trabajador con 5 años en la empresa, despido sin justa causa el mes pasado.',
         aiTags: [{ tag: 'despido', confidence: 0.92 }, { tag: 'prestaciones', confidence: 0.87 }],
-        documents: [{ name: 'contrato_trabajo.pdf', uploadDate: new Date().toISOString(), type: 'contract' }],
         auditLog: [{ date: new Date().toISOString(), action: 'case_created', user: student.name }],
         hoursSpent: 6.0,
         assignedStudentId: student.id
+      }
+    })
+
+    // 4.2 Crear documentos para case2 (relación)
+    await prisma.document.create({
+      data: {
+        fileName: 'contrato_trabajo.pdf',
+        fileType: 'application/pdf',
+        fileSize: 512000,
+        legalCaseId: case2.id,
+        uploadedBy: student.id,
+        description: 'Contrato de trabajo',
+        status: 'active'
       }
     })
 
