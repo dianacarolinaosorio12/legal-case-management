@@ -1,0 +1,9 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000/http://localhost:3000/login",
+  "backendAuthType": "basic token",
+  "backendUsername": "mgonzalez@universidad.edu.co",
+  "backendPassword": "password123"
+}

@@ -105,6 +105,16 @@ export const apiClient = {
       return handleResponse(response);
     },
 
+    getCalendarEvents: async () => {
+      const token = getAuthToken();
+      const response = await fetch(`${STUDENT_API_URL}/cases/calendar-events`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return handleResponse(response);
+    },
+
     getById: async (id: string) => {
       const token = getAuthToken();
       const response = await fetch(`${STUDENT_API_URL}/cases/${id}`, {

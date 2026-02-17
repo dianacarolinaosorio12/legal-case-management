@@ -1,0 +1,102 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e6] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e7]:
+      - img [ref=e8]
+    - generic [ref=e11]:
+      - button "Open issues overlay" [ref=e12]:
+        - generic [ref=e13]:
+          - generic [ref=e14]: "0"
+          - generic [ref=e15]: "1"
+        - generic [ref=e16]: Issue
+      - button "Collapse issues badge" [ref=e17]:
+        - img [ref=e18]
+  - link "Saltar al contenido principal" [ref=e20] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e21]:
+    - generic [ref=e25]:
+      - link "SICOP - Inicio" [ref=e27] [cursor=pointer]:
+        - /url: /dashboard/casos
+        - img [ref=e29]
+        - generic [ref=e33]:
+          - generic [ref=e34]: SICOP
+          - generic [ref=e35]: Sistema de Control de Prácticas
+      - generic [ref=e37]:
+        - generic [ref=e38]: Navegacion
+        - list [ref=e40]:
+          - listitem [ref=e41]:
+            - link "Mis Casos" [ref=e42] [cursor=pointer]:
+              - /url: /dashboard/casos
+              - img [ref=e43]
+              - generic [ref=e45]: Mis Casos
+          - listitem [ref=e46]:
+            - link "Nuevo Caso" [ref=e47] [cursor=pointer]:
+              - /url: /dashboard/nuevo-caso
+              - img [ref=e48]
+              - generic [ref=e51]: Nuevo Caso
+          - listitem [ref=e52]:
+            - link "Calendario" [ref=e53] [cursor=pointer]:
+              - /url: /dashboard/calendario
+              - img [ref=e54]
+              - generic [ref=e56]: Calendario
+      - generic [ref=e58]:
+        - paragraph [ref=e59]: Mario Gonzalez
+        - paragraph [ref=e60]: Consultorio Juridico
+    - main [ref=e61]:
+      - generic [ref=e63]:
+        - button "Toggle Sidebar" [ref=e65] [cursor=pointer]:
+          - img
+          - generic [ref=e66]: Toggle Sidebar
+        - button "MG Mario Gonzalez Estudiante" [ref=e68] [cursor=pointer]:
+          - generic [ref=e69]: MG
+          - generic [ref=e70]:
+            - generic [ref=e71]: Mario Gonzalez
+            - generic [ref=e72]: Estudiante
+          - img
+      - generic [ref=e74]:
+        - navigation "Progreso del formulario" [ref=e76]:
+          - list [ref=e77]:
+            - listitem [ref=e78]:
+              - generic [ref=e79]: "1"
+              - generic [ref=e80]: Informacion Basica
+            - listitem [ref=e82]:
+              - generic [ref=e83]: "2"
+              - generic [ref=e84]: Datos del Solicitante
+            - listitem [ref=e86]:
+              - generic [ref=e87]: "3"
+              - generic [ref=e88]: Notas de Entrevista
+            - listitem [ref=e90]:
+              - generic [ref=e91]: "4"
+              - generic [ref=e92]: Carga de Documentos
+        - generic [ref=e93]:
+          - generic [ref=e94]:
+            - generic [ref=e95]: Nuevo Expediente Digital - Paso 1 de 4
+            - paragraph [ref=e96]: "Radicado asignado: SICOP-2026-918409"
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - generic [ref=e100]: Tipo de Actuacion
+                - combobox "Tipo de Actuacion" [ref=e101] [cursor=pointer]:
+                  - generic: Seleccione el tipo de actuacion
+                  - img [ref=e102]
+              - generic [ref=e104]:
+                - generic [ref=e105]: Area juridica
+                - combobox "Area juridica" [ref=e106] [cursor=pointer]:
+                  - generic: Seleccione el area juridica
+                  - img [ref=e107]
+              - generic [ref=e109]:
+                - generic [ref=e110]: Radicado externo (si aplica)
+                - textbox "Radicado externo (si aplica)" [ref=e111]:
+                  - /placeholder: "Ej: 2024-00123"
+              - paragraph [ref=e113]: Los terminos procesales se calcularan automaticamente segun la configuracion del sistema.
+            - generic [ref=e114]:
+              - button "Cancelar" [ref=e116] [cursor=pointer]
+              - button "Siguiente" [ref=e118] [cursor=pointer]:
+                - text: Siguiente
+                - img
+    - button [ref=e119] [cursor=pointer]:
+      - img
+  - alert [ref=e120]
+```

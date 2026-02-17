@@ -39,7 +39,7 @@ export const initializeTransporter = (): nodemailer.Transporter => {
   transporter = nodemailer.createTransport({
     host: config.host,
     port: config.port,
-    secure: config.port === 465,
+    secure: false,
     auth: {
       user: config.user,
       pass: config.pass,
@@ -84,8 +84,15 @@ export const sendPasswordResetEmail = async (email: string, resetToken: string):
       `,
     };
 
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
     console.log(`✅ Email de recuperación enviado a: ${email}`);
+    
+    // Log de depuración para Ethereal
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) {
+      console.log(`🔗 Vista previa del correo (Ethereal): ${previewUrl}`);
+    }
+    
     return true;
   } catch (error) {
     console.error('❌ Error enviando email:', error);

@@ -31,12 +31,20 @@ model User {
 model LegalCase {
   id                String           @id @default(cuid())
   radicado          String           @unique
+  numeroProceso     String?          @unique // Número de proceso judicial
+  demandante        String?          // Actor / Plaintiff
+  demandado         String?          // Demandado / Defendant
+  despacho          String?          // Despacho judicial
+  fechaNotificacion DateTime?        @map("fecha_notificacion")
+  
+  // Datos del cliente (usuario)
   clientName        String
   clientDoc         String
   clientDocType     String
   clientPhone       String
   clientEmail       String
   clientAddress     String
+  
   type              CaseType
   area              CaseArea
   status            CaseStatus
@@ -62,8 +70,30 @@ model LegalCase {
   // Relations
   assignedStudent   User?   @relation("assignedStudent", fields: [assignedStudentId], references: [id])
   documents         Document[]
+  deadlines         LegalDeadline[]
   
   @@map("legal_cases")
+}
+
+// Modelo de Términos Procesales
+model LegalDeadline {
+  id                String   @id @default(cuid())
+  legalCaseId       String   @map("legal_case_id")
+  tipoTermino       String   @map("tipo_termino") // ej: "Tutela", "Demanda Laboral", "Impugnación"
+  nombreTermino     String   @map("nombre_termino") // ej: "Notificación al demandado", "Admisión de prueba"
+  fechaInicio       DateTime @map("fecha_inicio")
+  fechaVencimiento  DateTime @map("fecha_vencimiento")
+  diasTermino       Int      @map("dias_termino") // Días hábiles/calendario del término
+  diasRestantes     Int      @map("dias_restantes") // Días que faltan por vencer
+  estado            String   @default("activo") // activo, vencido, cumplido
+  observaciones     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  legalCase         LegalCase @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+
+  @@map("legal_deadlines")
 }
 
 // Modelo de Documentos para el Document Service
@@ -97,6 +127,10 @@ enum CaseType {
   Demanda
   Derecho_de_peticion
   Consulta
+  Accion_de_tutela
+  Proceso_sumario
+  Verbal
+  Ordinario
 }
 
 enum CaseArea {
@@ -105,6 +139,7 @@ enum CaseArea {
   Laboral
   Familia
   Derecho_Publico
+  Contencioso
 }
 
 enum CaseStatus {

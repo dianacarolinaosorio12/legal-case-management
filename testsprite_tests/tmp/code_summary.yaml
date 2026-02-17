@@ -1,0 +1,89 @@
+version: "2"
+type: frontend
+tech_stack:
+  - language: TypeScript
+  - framework: Next.js 16
+  - ui_library: Radix UI + Shadcn UI
+  - other: Tailwind CSS, React 19
+routes:
+  - path: /login
+    file: app/(auth)/login/page.tsx
+    auth_required: false
+    description: User login page
+  - path: /dashboard
+    file: app/(app)/dashboard/page.tsx
+    auth_required: true
+    description: Main dashboard for students
+  - path: /dashboard/casos
+    file: app/(app)/dashboard/casos/page.tsx
+    auth_required: true
+    description: List of legal cases
+  - path: /dashboard/nuevo-caso
+    file: app/(app)/dashboard/nuevo-caso/page.tsx
+    auth_required: true
+    description: Create new legal case form
+  - path: /dashboard/calendario
+    file: app/(app)/dashboard/calendario/page.tsx
+    auth_required: true
+    description: Calendar with deadline events
+features:
+  - name: User Login
+    description: Login with email and password
+    files:
+      - app/(auth)/login/page.tsx
+      - lib/auth-context.tsx
+      - lib/api-client.ts
+    user_interactions:
+      - Fill email input field
+      - Fill password input field
+      - Click Login button
+      - See error message on invalid credentials
+    api_calls:
+      - method: POST
+        endpoint: http://localhost:3001/auth/login
+    auth_required: false
+  - name: Create Legal Case
+    description: Register new legal case with automatic deadline calculation
+    files:
+      - app/(app)/dashboard/nuevo-caso/page.tsx
+      - lib/api-client.ts
+    user_interactions:
+      - Navigate to /dashboard/nuevo-caso
+      - Select case type (Tutela, Demanda, etc.)
+      - Select area (Civil, Laboral, etc.)
+      - Fill client information
+      - Fill interview notes
+      - Click Create Case button
+      - Confirm in dialog
+    api_calls:
+      - method: POST
+        endpoint: http://localhost:3002/cases
+    auth_required: true
+  - name: Calendar View
+    description: View deadline events with color-coded urgency
+    files:
+      - app/(app)/dashboard/calendario/page.tsx
+      - components/deadline-calendar.tsx
+    user_interactions:
+      - Navigate to /dashboard/calendario
+      - View calendar with events
+      - See colored events (red/yellow/green)
+      - Click on event to see details
+    api_calls:
+      - method: GET
+        endpoint: http://localhost:3002/cases/calendar-events
+    auth_required: true
+  - name: Document Upload
+    description: Upload documents to legal cases
+    files:
+      - lib/api-client.ts
+    user_interactions:
+      - Navigate to case detail
+      - Click upload button
+      - Select PDF file
+      - See file in list
+    api_calls:
+      - method: POST
+        endpoint: http://localhost:3003/documents
+    auth_required: true
+known_limitations: []

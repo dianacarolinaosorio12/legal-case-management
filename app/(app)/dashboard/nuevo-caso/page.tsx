@@ -1,8 +1,6 @@
 "use client"
 
-import React from "react"
-
-import { useState, useCallback, useRef } from "react"
+import React, { useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Upload,
@@ -44,6 +42,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import apiClient from "@/lib/api-client"
 
 // RF-05 flow: steps now include interview notes
 const steps = [
@@ -70,6 +69,18 @@ export default function NuevoCasoPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [aiAnalyzing, setAiAnalyzing] = useState(false)
   const [aiTags, setAiTags] = useState<{ label: string; confidence: number }[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // Client data states
+  const [clientName, setClientName] = useState("")
+  const [clientDoc, setClientDoc] = useState("")
+  const [clientDocType, setClientDocType] = useState("Cédula")
+  const [clientPhone, setClientPhone] = useState("")
+  const [clientEmail, setClientEmail] = useState("")
+  const [clientAddress, setClientAddress] = useState("")
+  const [description, setDescription] = useState("")
+  const [demandado, setDemandado] = useState("")
 
   // RF-27: Reserved legal data
   const [hasGeneticData, setHasGeneticData] = useState(false)
@@ -141,6 +152,42 @@ export default function NuevoCasoPage() {
   }, [])
 
   const generatedRadicado = `SICOP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 999999)).padStart(6, "0")}`
+
+  const handleCreateCase = async () => {
+    setIsSubmitting(true)
+    setSubmitError(null)
+    
+    try {
+      const caseData = {
+        radicado: generatedRadicado,
+        numeroProceso: `110013105${Date.now()}`,
+        demandante: clientName || "Por definir",
+        demandado: demandado || "Por definir",
+        despacho: "Por asignar",
+        clientName: clientName,
+        clientDoc: clientDoc,
+        clientDocType: clientDocType,
+        clientPhone: clientPhone,
+        clientEmail: clientEmail,
+        clientAddress: clientAddress,
+        type: caseType?.toUpperCase() || "DEMANDA",
+        area: area?.toUpperCase() || "CIVIL",
+        description: description,
+        isMinor: isMinor,
+        highRiskAlert: hasPensionData || hasGeneticData,
+        highRiskReason: reservedNotes,
+        interviewNotes: interviewNotes,
+      }
+
+      await apiClient.cases.create(caseData)
+      
+      router.push("/dashboard/casos")
+    } catch (error) {
+      console.error("Error creating case:", error)
+      setSubmitError("Error al crear el expediente. Intente de nuevo.")
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -756,8 +803,8 @@ export default function NuevoCasoPage() {
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => router.push("/dashboard")}>
-              Si, crear expediente
+            <Button onClick={handleCreateCase} disabled={isSubmitting}>
+              {isSubmitting ? "Creando..." : "Si, crear expediente"}
             </Button>
           </DialogFooter>
         </DialogContent>
