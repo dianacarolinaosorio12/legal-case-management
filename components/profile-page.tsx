@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { mockUsers } from "@/lib/mock-data"
+import { mockUsers } from "@/tests/mocks/mock-data"
 
 const roleBadgeColors: Record<string, string> = {
   estudiante: "bg-blue-100 text-blue-800 border-blue-200",

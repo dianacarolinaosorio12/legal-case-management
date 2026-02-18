@@ -1,3 +1,24 @@
+/**
+ * Document Service - SICOP
+ * 
+ * Este servicio está diseñado para manejar la gestión de documentos del sistema.
+ * 
+ * FUNCIONALIDAD ACTUAL:
+ * - CRUD básico de documentos (metadatos en PostgreSQL)
+ * - Almacenamiento simulado (campo s3Key para futura integración)
+ * 
+ * INTEGRACIÓN FUTURA (Placeholder):
+ * Para implementar almacenamiento en la nube, se debe:
+ * 1. Integrar con AWS S3, Azure Blob Storage o Google Cloud Storage
+ * 2. Reemplazar el campo 's3Key' por URLs públicas
+ * 3. Implementar streaming de archivos directamente al storage
+ * 4. Agregar validación de tipos MIME y tamaño máximo
+ * 
+ * Ejemplo de integración S3:
+ * const s3 = new S3Client({ region: 'us-east-1' });
+ * await s3.send(new PutObjectCommand({ Bucket: 'sicop-docs', Key: s3Key, Body: fileBuffer }));
+ */
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

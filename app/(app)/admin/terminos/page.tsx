@@ -43,7 +43,7 @@ import {
   mockTerminosProcesales,
   type TerminoProcesal,
   type CaseArea,
-} from "@/lib/mock-data"
+} from "@/tests/mocks/mock-data"
 
 const ALL_AREAS: CaseArea[] = [
   "Penal",

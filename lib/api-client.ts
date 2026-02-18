@@ -229,6 +229,93 @@ export const apiClient = {
       });
       return handleResponse(response);
     },
+
+    createFolders: async (data: { caseId: string; radicado: string }) => {
+      const token = getAuthToken();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DOCUMENT_API_URL || 'http://localhost:3003'}/documents/folders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      return handleResponse(response);
+    },
+
+    updateStatus: async (caseId: string, data: { status?: string; observations?: string; highRisk?: boolean; highRiskReason?: string }) => {
+      const token = getAuthToken();
+      const response = await fetch(`${STUDENT_API_URL}/cases/${caseId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      return handleResponse(response);
+    },
+
+    getStats: async () => {
+      const token = getAuthToken();
+      const response = await fetch(`${STUDENT_API_URL}/cases/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return handleResponse(response);
+    },
+
+    getFolders: async (caseId: string) => {
+      const token = getAuthToken();
+      const response = await fetch(`${STUDENT_API_URL}/cases/${caseId}/folders`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return handleResponse(response);
+    },
+
+    canEdit: async (caseId: string) => {
+      const token = getAuthToken();
+      const response = await fetch(`${STUDENT_API_URL}/cases/${caseId}/can-edit`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return handleResponse(response);
+    },
+
+    getNotifications: async () => {
+      const token = getAuthToken();
+      const response = await fetch(`${STUDENT_API_URL}/notifications`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return handleResponse(response);
+    },
+
+    markNotificationRead: async (notificationId: string) => {
+      const token = getAuthToken();
+      const response = await fetch(`${STUDENT_API_URL}/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return handleResponse(response);
+    },
+
+    getAuditLogs: async () => {
+      const token = getAuthToken();
+      const response = await fetch(`${STUDENT_API_URL}/audit-logs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return handleResponse(response);
+    },
   },
 };
 

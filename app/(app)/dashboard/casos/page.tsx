@@ -278,7 +278,7 @@ export default function MisCasosPage() {
       </Card>
 
       {/* Cases Table */}
-      <Card>
+      <Card data-testid="tabla-casos">
         <Table>
           <TableHeader>
             <TableRow>

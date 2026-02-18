@@ -11,7 +11,7 @@ export interface AuthRequest extends Request {
 
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
@@ -43,4 +43,20 @@ export const authorizeRoles = (...allowedRoles: string[]) => {
 
     next();
   };
+};
+
+export const isAuthenticated = (req: AuthRequest): boolean => {
+  return !!req.user && !!req.user.userId;
+};
+
+export const isStudent = (req: AuthRequest): boolean => {
+  return req.user?.role === 'estudiante';
+};
+
+export const isProfessor = (req: AuthRequest): boolean => {
+  return req.user?.role === 'profesor';
+};
+
+export const isAdmin = (req: AuthRequest): boolean => {
+  return req.user?.role === 'administrativo';
 };

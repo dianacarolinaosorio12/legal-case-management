@@ -25,8 +25,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Semaphore } from "@/components/semaphore"
-import { mockProfessorInbox, type ProfessorInboxItem } from "@/lib/mock-data"
+import { mockProfessorInbox, type ProfessorInboxItem } from "@/tests/mocks/mock-data"
 import { useAuth } from "@/lib/auth-context"
+import { ProtectedRoute } from "@/lib/protected-route"
 
 const phaseLabels: Record<number, { label: string; shortLabel: string; color: string; bg: string; border: string; icon: typeof FileSearch; desc: string }> = {
   1: { label: "Evaluacion", shortLabel: "Evaluacion", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200", icon: FileSearch, desc: "Revise la informacion enviada por el estudiante." },
@@ -78,7 +79,8 @@ function ProfessorInboxContent() {
       (item.clientDoc && item.clientDoc.includes(search))
     const matchRed = filterRedOnly ? item.semaphore === "red" : true
     const matchPhase = !faseParam || item.phase === Number(faseParam)
-    return matchSearch && matchRed && matchPhase
+    const matchArea = item.area.toLowerCase() === professorArea.toLowerCase()
+    return matchSearch && matchRed && matchPhase && matchArea
   })
 
   function toggleSelectAll() {
@@ -347,8 +349,10 @@ function ProfessorInboxContent() {
 
 export default function ProfessorInboxPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-muted-foreground">Cargando...</div>}>
-      <ProfessorInboxContent />
-    </Suspense>
+    <ProtectedRoute allowedRoles={["profesor"]}>
+      <Suspense fallback={<div className="p-6 text-muted-foreground">Cargando...</div>}>
+        <ProfessorInboxContent />
+      </Suspense>
+    </ProtectedRoute>
   )
 }

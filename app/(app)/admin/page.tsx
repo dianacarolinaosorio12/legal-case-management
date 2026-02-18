@@ -1,8 +1,6 @@
 "use client"
 
-import React from "react"
-
-import { useState, useMemo, useRef } from "react"
+import React, { useState, useMemo, useRef, useEffect } from "react"
 import {
   FolderOpen,
   CheckCircle2,
@@ -21,6 +19,8 @@ import {
   CalendarDays,
   Timer,
   ChevronDown,
+  Download,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -53,6 +53,8 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Semaphore } from "@/components/semaphore"
+import apiClient from "@/lib/api-client"
+import { useAuth } from "@/lib/auth-context"
 import {
   Bar,
   BarChart,
@@ -67,15 +69,49 @@ import {
   Tooltip,
 } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { mockCases, mockUsers, getSemaphoreFromDeadline, getSemaphoreLabel, getPhaseFromStatus, TODAY } from "@/lib/mock-data"
 
-// RF-13: KPI calculations from mock data
-const activeCases = mockCases.filter((c) => c.status !== "Cerrado").length
-const pendingCases = mockCases.filter((c) => c.status === "Evaluacion" || c.status === "Sustanciacion").length
-const attendedCases = mockCases.filter((c) => c.status === "Aprobado" || c.status === "Seguimiento").length
-const overdueCases = mockCases.filter((c) => getSemaphoreFromDeadline(c.deadline) === "red").length
-const closedThisMonth = mockCases.filter((c) => c.status === "Cerrado").length
-const avgResolutionDays = 18 // mock average
+interface CaseStats {
+  total: number
+  active: number
+  highRisk: number
+  overdue: number
+  byPhase: Record<string, number>
+  byArea: Record<string, number>
+}
+
+export default function AdminDashboard() {
+  const { user } = useAuth()
+  const [stats, setStats] = useState<CaseStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [cases, setCases] = useState<any[]>([])
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [statsData, casesData] = await Promise.all([
+          apiClient.cases.getStats() as Promise<CaseStats>,
+          apiClient.cases.getAll() as Promise<any[]>
+        ])
+        setStats(statsData)
+        setCases(casesData || [])
+      } catch (err) {
+        console.error('Error loading admin data:', err)
+        setStats({ total: 0, active: 0, highRisk: 0, overdue: 0, byPhase: {}, byArea: {} })
+        setCases([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
+
+  const activeCases = stats?.active ?? 0
+  const pendingCases = stats?.byPhase?.['Evaluacion'] ?? 0
+  const attendedCases = (stats?.byPhase?.['Aprobado'] ?? 0) + (stats?.byPhase?.['Seguimiento'] ?? 0)
+  const overdueCases = stats?.overdue ?? 0
+  const highRiskCases = stats?.highRisk ?? 0
+  const closedThisMonth = stats?.byPhase?.['Cerrado'] ?? 0
+  const avgResolutionDays = 18
 
 const kpis = [
   {
@@ -168,15 +204,15 @@ const casesByStatus = [
   { name: "Cerrado", value: 8, fill: "#9ca3af" },
 ]
 
-const recentActivity = [
-  { time: "Hace 5 min", user: "Maria Gonzalez", action: "Creo caso SICOP-2024-001242" },
-  { time: "Hace 15 min", user: "Dr. Perez", action: "Aprobo caso SICOP-2024-001236" },
-  { time: "Hace 1 hora", user: "Dra. Rodriguez", action: "Devolvio caso SICOP-2024-001241" },
-  { time: "Hace 2 horas", user: "Admin", action: "Reasigno caso SICOP-2024-001230" },
-  { time: "Hace 3 horas", user: "Admin", action: "Sustitucion: Carlos -> Maria en SICOP-2024-001237" },
-]
+  // Recent activity - could be fetched from API
+  const recentActivity = [
+    { time: "Hace 5 min", user: "Maria Gonzalez", action: "Creo caso SICOP-2024-001242" },
+    { time: "Hace 15 min", user: "Dr. Perez", action: "Aprobo caso SICOP-2024-001236" },
+    { time: "Hace 1 hora", user: "Dra. Rodriguez", action: "Devolvio caso SICOP-2024-001241" },
+    { time: "Hace 2 horas", user: "Admin", action: "Reasigno caso SICOP-2024-001230" },
+    { time: "Hace 3 horas", user: "Admin", action: "Sustitucion: Carlos -> Maria en SICOP-2024-001237" },
+  ]
 
-export default function AdminDashboard() {
   // RF-25: Reassignment dialog state
   const [showReassignDialog, setShowReassignDialog] = useState(false)
   const [reassignCase, setReassignCase] = useState("")
@@ -902,8 +938,31 @@ export default function AdminDashboard() {
           </DialogContent>
         </Dialog>
 
-        <Button variant="outline" className="flex items-center gap-2 bg-transparent">
-          Generar reporte mensual
+        <Button variant="outline" className="flex items-center gap-2 bg-transparent" onClick={() => {
+          const headers = ["Radicado", "Estado", "Area", "Estudiante", "Cliente", "Documento", "Fecha", "Horas"]
+          const rows = cases.map((c: any) => [
+            c.radicado || '',
+            c.status || '',
+            c.area || '',
+            c.assignedStudentName || '',
+            c.clientName || '',
+            c.clientDoc || '',
+            c.createdAt || '',
+            c.hoursSpent || 0
+          ])
+          const csvContent = [headers.join(","), ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(","))].join("\n")
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement("a")
+          link.href = url
+          link.download = `reporte_casos_${new Date().toISOString().split('T')[0]}.csv`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        }}>
+          <Download size={16} aria-hidden="true" />
+          Exportar CSV
         </Button>
       </div>
 

@@ -49,11 +49,27 @@ router.post('/login', async (req, res) => {
       { 
         userId: user.id, 
         email: user.email, 
-        role: user.role 
+        role: user.role,
+        area: user.area
       },
       process.env.JWT_SECRET as string,
-      { expiresIn: '24h' }
+      { expiresIn: '2h' }
     );
+
+    // Registrar en audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'login',
+          details: `Usuario ${user.email} inició sesión`,
+          ipAddress: req.ip || '127.0.0.1',
+          createdAt: new Date()
+        }
+      });
+    } catch (auditError) {
+      console.error('Error logging audit:', auditError);
+    }
 
     res.json({
       token,

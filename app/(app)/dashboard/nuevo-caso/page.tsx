@@ -17,6 +17,7 @@ import {
   Italic,
   Underline,
   FileSpreadsheet,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import apiClient from "@/lib/api-client"
+import { useAuth } from "@/lib/auth-context"
 
 // RF-05 flow: steps now include interview notes
 const steps = [
@@ -59,8 +61,25 @@ interface UploadedFile {
   progress: number
 }
 
+function formatProcessNumber(value: string): string {
+  const numbers = value.replace(/\D/g, '').slice(0, 23)
+  const parts = []
+  if (numbers.length > 0) parts.push(numbers.slice(0, 5))
+  if (numbers.length > 5) parts.push(numbers.slice(5, 9))
+  if (numbers.length > 9) parts.push(numbers.slice(9, 13))
+  if (numbers.length > 13) parts.push(numbers.slice(13, 17))
+  if (numbers.length > 17) parts.push(numbers.slice(17, 23))
+  return parts.join('-')
+}
+
+function validateProcessNumber(value: string): boolean {
+  const numbers = value.replace(/-/g, '')
+  return numbers.length === 23 && /^\d+$/.test(numbers)
+}
+
 export default function NuevoCasoPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
@@ -81,6 +100,17 @@ export default function NuevoCasoPage() {
   const [clientAddress, setClientAddress] = useState("")
   const [description, setDescription] = useState("")
   const [demandado, setDemandado] = useState("")
+
+  // HU-02: New fields for judicial process
+  const [numeroProceso, setNumeroProceso] = useState("")
+  const [numeroProcesoError, setNumeroProcesoError] = useState(false)
+  const [demandante, setDemandante] = useState("")
+  const [demandanteDoc, setDemandanteDoc] = useState("")
+  const [demandanteDocType, setDemandanteDocType] = useState("Cédula")
+  const [demandadoDoc, setDemandadoDoc] = useState("")
+  const [demandadoDocType, setDemandadoDocType] = useState("Cédula")
+  const [despacho, setDespacho] = useState("")
+  const [tipoProceso, setTipoProceso] = useState("Civil")
 
   // RF-27: Reserved legal data
   const [hasGeneticData, setHasGeneticData] = useState(false)
@@ -160,10 +190,14 @@ export default function NuevoCasoPage() {
     try {
       const caseData = {
         radicado: generatedRadicado,
-        numeroProceso: `110013105${Date.now()}`,
-        demandante: clientName || "Por definir",
+        numeroProceso: numeroProceso.replace(/-/g, ''),
+        demandante: demandante || clientName || "Por definir",
+        demandanteDoc: demandanteDoc || clientDoc,
+        demandanteDocType: demandanteDocType || clientDocType,
         demandado: demandado || "Por definir",
-        despacho: "Por asignar",
+        demandadoDoc: demandadoDoc,
+        demandadoDocType: demandadoDocType,
+        despacho: despacho || "Por asignar",
         clientName: clientName,
         clientDoc: clientDoc,
         clientDocType: clientDocType,
@@ -172,14 +206,21 @@ export default function NuevoCasoPage() {
         clientAddress: clientAddress,
         type: caseType?.toUpperCase() || "DEMANDA",
         area: area?.toUpperCase() || "CIVIL",
+        tipoProceso: tipoProceso,
         description: description,
         isMinor: isMinor,
         highRiskAlert: hasPensionData || hasGeneticData,
         highRiskReason: reservedNotes,
         interviewNotes: interviewNotes,
+        assignedStudentId: user?.id,
       }
 
-      await apiClient.cases.create(caseData)
+      const createdCase = await apiClient.cases.create(caseData) as { id?: string; radicado: string }
+      
+      await apiClient.documents.createFolders({
+        caseId: createdCase.id || createdCase.radicado,
+        radicado: generatedRadicado,
+      })
       
       router.push("/dashboard/casos")
     } catch (error) {
@@ -187,6 +228,12 @@ export default function NuevoCasoPage() {
       setSubmitError("Error al crear el expediente. Intente de nuevo.")
       setIsSubmitting(false)
     }
+  }
+
+  const handleProcessNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatProcessNumber(e.target.value)
+    setNumeroProceso(formatted)
+    setNumeroProcesoError(formatted.length > 0 && !validateProcessNumber(formatted))
   }
 
   return (
@@ -289,7 +336,7 @@ export default function NuevoCasoPage() {
                   Area juridica
                 </Label>
                 <Select value={area} onValueChange={setArea}>
-                  <SelectTrigger id="area" className="h-12">
+                  <SelectTrigger id="area" className="h-12" data-testid="select-area">
                     <SelectValue placeholder="Seleccione el area juridica" />
                   </SelectTrigger>
                   <SelectContent>
@@ -316,6 +363,85 @@ export default function NuevoCasoPage() {
                     onChange={(e) => setCustomArea(e.target.value)}
                   />
                 )}
+              </div>
+
+              {/* HU-02: Tipo de Proceso Judicial */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="tipoProceso" className="text-base">
+                  Tipo de Proceso Judicial
+                </Label>
+                <Select value={tipoProceso} onValueChange={setTipoProceso}>
+                  <SelectTrigger id="tipoProceso" className="h-12">
+                    <SelectValue placeholder="Seleccione el tipo de proceso" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Civil">Civil</SelectItem>
+                    <SelectItem value="Penal">Penal</SelectItem>
+                    <SelectItem value="Familia">Familia</SelectItem>
+                    <SelectItem value="Laboral">Laboral</SelectItem>
+                    <SelectItem value="Contencioso">Contencioso Administrativo</SelectItem>
+                    <SelectItem value="Tutela">Tutela</SelectItem>
+                    <SelectItem value="Ejecutivo">Ejecutivo</SelectItem>
+                    <SelectItem value="Verbal">Verbal</SelectItem>
+                    <SelectItem value="Ordinario">Ordinario</SelectItem>
+                    <SelectItem value="Sumario">Sumario</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* HU-02: Número de Proceso (23 dígitos) */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="numeroProceso" className="text-base">
+                  Número de Proceso Judicial{" "}
+                  <span className="text-sm font-normal text-muted-foreground">(formato: 13001-XXXX-XXXX-XXXX-XXXXX)</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="numeroProceso"
+                    placeholder="13001-0000-0000-0000-00000"
+                    className={`h-12 font-mono ${numeroProcesoError ? 'border-destructive focus:ring-destructive' : ''}`}
+                    value={numeroProceso}
+                    onChange={handleProcessNumberChange}
+                    maxLength={27}
+                  />
+                  {numeroProcesoError && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-destructive">
+                      <AlertCircle size={16} />
+                      <span className="text-xs">Debe tener 23 dígitos</span>
+                    </div>
+                  )}
+                </div>
+                {numeroProceso.length > 0 && !numeroProcesoError && (
+                  <p className="text-xs text-success flex items-center gap-1">
+                    <Check size={12} /> Formato válido
+                  </p>
+                )}
+              </div>
+
+              {/* HU-02: Despacho Judicial */}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="despacho" className="text-base">
+                  Despacho Judicial
+                </Label>
+                <Select value={despacho} onValueChange={setDespacho}>
+                  <SelectTrigger id="despacho" className="h-12">
+                    <SelectValue placeholder="Seleccione el despacho" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="JUZGADO 1 CIVIL MUNICIPAL">Juzgado 1 Civil Municipal</SelectItem>
+                    <SelectItem value="JUZGADO 2 CIVIL MUNICIPAL">Juzgado 2 Civil Municipal</SelectItem>
+                    <SelectItem value="JUZGADO 3 CIVIL MUNICIPAL">Juzgado 3 Civil Municipal</SelectItem>
+                    <SelectItem value="JUZGADO 4 CIVIL MUNICIPAL">Juzgado 4 Civil Municipal</SelectItem>
+                    <SelectItem value="JUZGADO 5 CIVIL MUNICIPAL">Juzgado 5 Civil Municipal</SelectItem>
+                    <SelectItem value="JUZGADO 1 CIVIL CIRCUITO">Juzgado 1 Civil Circuito</SelectItem>
+                    <SelectItem value="JUZGADO 2 CIVIL CIRCUITO">Juzgado 2 Civil Circuito</SelectItem>
+                    <SelectItem value="JUZGADO 1 LABORAL">Juzgado 1 Laboral</SelectItem>
+                    <SelectItem value="JUZGADO 2 LABORAL">Juzgado 2 Laboral</SelectItem>
+                    <SelectItem value="JUZGADO 1 PENAL">Juzgado 1 Penal</SelectItem>
+                    <SelectItem value="JUZGADO 1 FAMILIA">Juzgado 1 Familia</SelectItem>
+                    <SelectItem value="POR ASIGNAR">Por Asignar</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -434,6 +560,112 @@ export default function NuevoCasoPage() {
                   />
                 </div>
               )}
+
+              {/* HU-02: Sujetos Procesales - Demandante */}
+              <div className="flex flex-col gap-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-center gap-2">
+                  <Shield size={20} className="text-primary" aria-hidden="true" />
+                  <span className="text-base font-semibold text-foreground">
+                    Demandante (Actor)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="demandanteNombre" className="text-sm">
+                      Nombre completo
+                    </Label>
+                    <Input 
+                      id="demandanteNombre" 
+                      placeholder="Nombre del demandante" 
+                      className="h-10"
+                      value={demandante}
+                      onChange={(e) => setDemandante(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="demandanteDocType" className="text-xs">
+                        Tipo
+                      </Label>
+                      <Select value={demandanteDocType} onValueChange={setDemandanteDocType}>
+                        <SelectTrigger id="demandanteDocType" className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Cédula">C.C.</SelectItem>
+                          <SelectItem value="NIT">NIT</SelectItem>
+                          <SelectItem value="C.E.">C.E.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="demandanteDoc" className="text-xs">
+                        Documento
+                      </Label>
+                      <Input 
+                        id="demandanteDoc" 
+                        placeholder="No. documento" 
+                        className="h-10 font-mono"
+                        value={demandanteDoc}
+                        onChange={(e) => setDemandanteDoc(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* HU-02: Sujetos Procesales - Demandado */}
+              <div className="flex flex-col gap-4 rounded-lg border border-warning/20 bg-warning/5 p-4">
+                <div className="flex items-center gap-2">
+                  <Shield size={20} className="text-accent" aria-hidden="true" />
+                  <span className="text-base font-semibold text-foreground">
+                    Demandado
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="demandadoNombre" className="text-sm">
+                      Nombre completo / Razón social
+                    </Label>
+                    <Input 
+                      id="demandadoNombre" 
+                      placeholder="Nombre del demandado" 
+                      className="h-10"
+                      value={demandado}
+                      onChange={(e) => setDemandado(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="demandadoDocType" className="text-xs">
+                        Tipo
+                      </Label>
+                      <Select value={demandadoDocType} onValueChange={setDemandadoDocType}>
+                        <SelectTrigger id="demandadoDocType" className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Cédula">C.C.</SelectItem>
+                          <SelectItem value="NIT">NIT</SelectItem>
+                          <SelectItem value="C.E.">C.E.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="demandadoDoc" className="text-xs">
+                        Documento
+                      </Label>
+                      <Input 
+                        id="demandadoDoc" 
+                        placeholder="No. documento" 
+                        className="h-10 font-mono"
+                        value={demandadoDoc}
+                        onChange={(e) => setDemandadoDoc(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* RF-27: Reserved Legal Data */}
               <div className="flex flex-col gap-4 rounded-lg border-2 border-destructive/30 bg-destructive/5 p-4">
@@ -777,6 +1009,7 @@ export default function NuevoCasoPage() {
                 <Button
                   onClick={() => setShowConfirmDialog(true)}
                   className="flex items-center gap-2"
+                  data-testid="btn-crear-caso"
                 >
                   <Check size={16} aria-hidden="true" />
                   Crear Expediente

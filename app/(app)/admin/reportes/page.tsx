@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockCases, mockUsers } from "@/lib/mock-data"
+import { mockCases, mockUsers } from "@/tests/mocks/mock-data"
 
 // ── Period selector constants ────────────────────────────────────────
 const MONTHS = [

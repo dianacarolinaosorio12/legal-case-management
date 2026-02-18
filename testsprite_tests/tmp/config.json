@@ -1,9 +1,10 @@
 {
-  "status": "commited",
-  "type": "backend",
+  "status": "init",
+  "type": "frontend",
   "scope": "codebase",
-  "localEndpoint": "http://localhost:3000/http://localhost:3000/login",
+  "localEndpoint": "http://localhost:3000/",
   "backendAuthType": "basic token",
   "backendUsername": "mgonzalez@universidad.edu.co",
-  "backendPassword": "password123"
+  "backendPassword": "password123",
+  "serverPort": 64652
 }

@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Semaphore } from "@/components/semaphore"
-import { mockCases, type AuditEntry, type UserRole } from "@/lib/mock-data"
+import { mockCases, type AuditEntry, type UserRole } from "@/tests/mocks/mock-data"
 
 // Aggregate all audit entries from all cases
 interface AuditWithCase extends AuditEntry {

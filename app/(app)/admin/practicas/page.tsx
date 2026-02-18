@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { mockUsers, mockCases, TODAY, getPhaseFromStatus } from "@/lib/mock-data"
+import { mockUsers, mockCases, TODAY, getPhaseFromStatus } from "@/tests/mocks/mock-data"
 
 const MAX_HOURS_WEEK = 8
 const MAX_HOURS_MONTH = 32

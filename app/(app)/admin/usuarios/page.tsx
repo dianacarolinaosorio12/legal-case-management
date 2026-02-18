@@ -48,7 +48,7 @@ import {
   type UserRole,
   type CaseArea,
   type DocType,
-} from "@/lib/mock-data"
+} from "@/tests/mocks/mock-data"
 
 // Extended user type for this page (adds fields not in base SystemUser)
 interface ExtendedUser extends SystemUser {

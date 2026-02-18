@@ -19,6 +19,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   isLoading: boolean
+  isEstudiante: boolean
+  isProfesor: boolean
+  isAdmin: boolean
+  hasRole: (roles: string[]) => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -33,8 +37,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem("sicop_user")
 
     if (storedToken && storedUser) {
-      setToken(storedToken)
       try {
+        const tokenParts = storedToken.split('.')
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]))
+          const expirationTime = payload.exp * 1000
+          const now = Date.now()
+          
+          if (expirationTime < now) {
+            console.log('Token expired, logging out...')
+            localStorage.removeItem("sicop_token")
+            localStorage.removeItem("sicop_user")
+            window.location.replace("/login?expired=true")
+            return
+          }
+          
+          setTimeout(() => {
+            console.log('Token expiring soon, logging out...')
+            localStorage.removeItem("sicop_token")
+            localStorage.removeItem("sicop_user")
+            window.location.replace("/login?expired=true")
+          }, expirationTime - now)
+        }
+        setToken(storedToken)
         setUser(JSON.parse(storedUser))
       } catch {
         localStorage.removeItem("sicop_token")
@@ -57,12 +82,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem("sicop_token")
     localStorage.removeItem("sicop_user")
+    sessionStorage.clear()
     setToken(null)
     setUser(null)
+    window.location.replace("/login")
   }
 
+  const isEstudiante = user?.role === "estudiante"
+  const isProfesor = user?.role === "profesor"
+  const isAdmin = user?.role === "administrativo"
+  
+  const hasRole = (roles: string[]) => user ? roles.includes(user.role) : false
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading, isEstudiante, isProfesor, isAdmin, hasRole }}>
       {children}
     </AuthContext.Provider>
   )

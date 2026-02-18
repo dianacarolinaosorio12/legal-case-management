@@ -54,8 +54,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { mockCases, mockComments, getPhaseFromStatus, getSemaphoreFromDeadline } from "@/lib/mock-data"
-import type { CaseType, CaseArea, ProcesalDeadline } from "@/lib/mock-data"
+import { mockCases, mockComments, getPhaseFromStatus, getSemaphoreFromDeadline } from "@/tests/mocks/mock-data"
+import type { CaseType, CaseArea, ProcesalDeadline } from "@/tests/mocks/mock-data"
 
 const PHASE_LABELS = ["Evaluacion", "Revision", "Aprobacion", "Seguimiento"]
 
@@ -748,7 +748,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         </TabsContent>
 
         {/* Tab: Documentos */}
-        <TabsContent value="documentos" className="mt-6">
+        <TabsContent value="documentos" className="mt-6" data-testid="tabla-documentos">
           <div className="flex flex-col gap-4">
             {/* Upload zone (only in edit mode) */}
             {canEdit && (

@@ -65,12 +65,16 @@ model LegalCase {
   auditLog         Json // Array of AuditEntry objects
   survey           Json? // SatisfactionSurvey object
   hoursSpent       Float
+  firmaDigital     String? // Hash de aprobación del profesor
+  firmaFecha       DateTime? @map("firma_fecha") // Fecha de la firma
   assignedStudentId String? @map("assigned_student_id")
+  statusUpdatedAt   DateTime @default(now()) @map("status_updated_at")
   
   // Relations
   assignedStudent   User?   @relation("assignedStudent", fields: [assignedStudentId], references: [id])
   documents         Document[]
   deadlines         LegalDeadline[]
+  folders          Folder[]
   
   @@map("legal_cases")
 }
@@ -96,6 +100,22 @@ model LegalDeadline {
   @@map("legal_deadlines")
 }
 
+// Modelo de Carpetas lógicas para organización de documentos
+model Folder {
+  id          String   @id @default(cuid())
+  name        String   // "Identidad", "Poderes y Sustituciones", "Actuaciones Procesales"
+  description String?
+  legalCaseId String   @map("legal_case_id")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  legalCase   LegalCase @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+  documents   Document[]
+
+  @@map("folders")
+}
+
 // Modelo de Documentos para el Document Service
 model Document {
   id          String   @id @default(cuid())
@@ -103,6 +123,7 @@ model Document {
   fileType    String
   fileSize    Int
   legalCaseId String   @map("legal_case_id")
+  folderId    String?  @map("folder_id")
   uploadedBy  String
   description String?
   s3Key       String?  // Clave en S3 (para futura integración)
@@ -112,6 +133,7 @@ model Document {
 
   // Relations
   legalCase   LegalCase @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@map("documents")
 }
@@ -144,6 +166,7 @@ enum CaseArea {
 
 enum CaseStatus {
   Evaluacion
+  Devolucion_estudiante
   Sustanciacion
   Revision_del_profesor
   Aprobado
@@ -155,4 +178,31 @@ enum SemaphoreColor {
   red
   yellow
   green
+}
+
+// Modelo de Auditoría de Acceso
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  action      String   // "login", "logout", "case_created", "status_changed", etc.
+  details     String?  // Descripción adicional
+  ipAddress   String?  @map("ip_address") // IP simulada
+  caseId      String?  @map("case_id") // Si es relacionado a un caso
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+// Modelo de Notificaciones
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id") // Usuario que recibe la notificación
+  type        String   // "new_case", "status_change", "approval", etc.
+  title       String
+  message     String
+  caseId      String?  @map("case_id")
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
 }

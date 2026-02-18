@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { Semaphore } from "@/components/semaphore"
-import { mockCases, mockComments, getPhaseFromStatus, type CaseStatus, type AuditEntry } from "@/lib/mock-data"
+import { mockCases, mockComments, getPhaseFromStatus, type CaseStatus, type AuditEntry } from "@/tests/mocks/mock-data"
 
 const PHASE_LABELS = ["Evaluacion", "Revision", "Aprobacion", "Seguimiento", "Cerrado"]
 
